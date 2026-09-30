@@ -105,13 +105,13 @@ async function loadVidSrcLatest(){
    jget('https://vidsrc.sh/movies/latest/page-1.json',undefined,true),
    jget('https://vidsrc.sh/tvshows/latest/page-1.json',undefined,true)
   ]);
-  const ids=[...(m?.result||[]).slice(0,10),...(t?.result||[]).slice(0,10)];
-  const unique=[...new Map(ids.map(x=>[String(x.tmdb_id||x.imdb_id),x])).values()].slice(0,14);
+  const ids=[...(m?.result||[]).slice(0,10).map(x=>({...x,_kind:'movie'})),...(t?.result||[]).slice(0,10).map(x=>({...x,_kind:'tv'}))];
+  const unique=[...new Map(ids.map(x=>[String(x.tmdb_id||x.imdb_id)+'-'+x._kind,x])).values()].slice(0,14);
   const hydrated=(await Promise.all(unique.map(async x=>{
     try{
-      const path=x.tmdb_id?(x.title?.match(/\\d{4}$/)?'/movie/':'/movie/')+encodeURIComponent(x.tmdb_id):null;
-      if(!path)return null;
-      return await api(path);
+      if(!x.tmdb_id)return null;
+      const d=await api('/'+x._kind+'/'+encodeURIComponent(x.tmdb_id));
+      return {...d,media_type:x._kind};
     }catch{return null}
   }))).filter(Boolean);
   box.innerHTML=hydrated.map(card).join('')||'<p class="empty">Fresh additions could not load right now.</p>';
