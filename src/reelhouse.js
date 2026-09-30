@@ -30,8 +30,12 @@ function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
  return jget(u.href,h,!/^\/movie\/\d/.test(p))}
 const yr=m=>(m.release_date||'').slice(0,4)||'—';
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
-const card=m=>m.poster_path?`<a class="card" tabindex="0" role="button" data-id="${m.id}"><i>${I.star}${(m.vote_average||0).toFixed(1)}</i><img loading="lazy" decoding="async" src="${IMG}w342${m.poster_path}" alt=""><div class="m"><b>${esc(m.title)}</b><span>${yr(m)}</span></div></a>`:'';
-const slim=m=>({id:m.id,title:m.title,poster_path:m.poster_path,vote_average:m.vote_average,release_date:m.release_date});
+const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.name);
+const titleOf=m=>m.title||m.name||m.original_title||m.original_name||'Untitled';
+const dateOf=m=>m.release_date||m.first_air_date||'';
+const yr=m=>dateOf(m).slice(0,4)||'—';
+const card=m=>m.poster_path?\`<a class="card" tabindex="0" role="button" data-id="\${m.id}" data-kind="\${isTV(m)?'tv':'movie'}"><i>\${I.star}\${(m.vote_average||0).toFixed(1)}</i><img loading="lazy" decoding="async" src="\${IMG}w342\${m.poster_path}" alt=""><div class="m"><b>\${esc(titleOf(m))}</b><span>\${yr(m)} · \${isTV(m)?'Series':'Movie'}</span></div></a>\`:'';
+const slim=m=>({id:m.id,title:titleOf(m),name:m.name,poster_path:m.poster_path,vote_average:m.vote_average,release_date:m.release_date,first_air_date:m.first_air_date,media_type:isTV(m)?'tv':'movie'});
 const has=(k,id)=>lists[k].some(m=>m.id===id);
 function toggle(k,m){const on=has(k,m.id);lists[k]=on?lists[k].filter(x=>x.id!==m.id):[slim(m),...lists[k]];store.set(k,lists[k]);
  toast((k==='list'?'My list':'Favorites')+(on?': removed':': added'));return !on}
@@ -88,22 +92,88 @@ async function download(id,title){toast('Finding the file…');let u;try{u=await
  const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';a.click();toast('Opened. Use “Save video as” to keep it.')}
 
 /* ---------- search ---------- */
-const B={g:'',sort:'popularity.desc',q:'',page:1,genres:null};
+const B={type:'all',g:'',sort:'popularity.desc',q:'',page:1,genres:null,tvGenres:null,filterOpen:false,suggest:[]};
+const SEARCH_TYPES=[['all','Everything'],['movie','Movies'],['tv','Series'],['anime','Anime']];
+const animeParams={with_genres:'16',with_origin_country:'JP'};
+const searchItem=(m)=>\`<button class="suggest" data-id="\${m.id}" data-kind="\${isTV(m)?'tv':'movie'}"><img src="\${m.poster_path?IMG+'w92'+m.poster_path:''}" alt=""><span><b>\${esc(titleOf(m))}</b><small>\${esc(isTV(m)?'Series':'Movie')} · \${esc(yr(m))}</small></span><em>\${I.r}</em></button>\`;
+function genreList(){return B.type==='tv'||B.type==='anime'?(B.tvGenres||[]):(B.genres||[])}
+function renderSearchFilters(){
+ const ch=$('#searchGenres'),types=$('#searchTypes'),sort=$('#sort');
+ if(types)types.innerHTML=SEARCH_TYPES.map(([v,l])=>\`<button class="chip \${B.type===v?'on':''}" data-type="\${v}">\${l}</button>\`).join('');
+ if(ch)ch.innerHTML=[{id:'',name:'All genres'},...genreList()].map(g=>\`<button class="chip \${String(g.id)===B.g?'on':''}" data-g="\${g.id}">\${esc(g.name)}</button>\`).join('');
+ if(sort)sort.value=B.sort;
+}
+async function loadSearchMeta(){
+ if(!B.genres||!B.tvGenres){try{const [mg,tg]=await Promise.all([api('/genre/movie/list'),api('/genre/tv/list')]);B.genres=mg.genres||[];B.tvGenres=tg.genres||[]}catch{B.genres=[];B.tvGenres=[]}}
+ renderSearchFilters();
+}
+async function suggestions(q){
+ if(q.length<2){B.suggest=[];renderSuggestions();return}
+ try{
+  let d;
+  if(B.type==='movie')d=await api('/search/movie',{query:q,page:1,include_adult:false});
+  else if(B.type==='tv'||B.type==='anime')d=await api('/search/tv',{query:q,page:1,include_adult:false});
+  else d=await api('/search/multi',{query:q,page:1,include_adult:false});
+  let r=(d.results||[]).filter(m=>m.media_type!=='person'&&m.poster_path);
+  if(B.type==='anime')r=r.filter(m=>isTV(m)&&(m.genre_ids||[]).includes(16)&&(m.origin_country||[]).includes('JP'));
+  B.suggest=r.slice(0,7);
+ }catch{B.suggest=[]}
+ renderSuggestions();
+}
+function renderSuggestions(){
+ const box=$('#suggestions');if(!box)return;
+ box.innerHTML=B.suggest.length?B.suggest.map(searchItem).join(''):'';
+ box.classList.toggle('on',B.q.length>=2&&B.suggest.length>0);
+}
+function searchQuery(){
+ const p={page:B.page,include_adult:false,sort_by:B.sort};
+ if(B.g)p.with_genres=B.g;
+ if(B.type==='anime')Object.assign(p,animeParams);
+ if(B.sort!=='popularity.desc')p.vote_count_gte=300;
+ return p;
+}
+async function fill(reset){
+ const gr=$('#gr');if(!gr)return;
+ if(reset)gr.innerHTML='<div class="sk"></div>'.repeat(15);
+ try{
+  let d;
+  if(B.q){
+   if(B.type==='movie')d=await api('/search/movie',{query:B.q,page:B.page,include_adult:false});
+   else if(B.type==='tv'||B.type==='anime')d=await api('/search/tv',{query:B.q,page:B.page,include_adult:false});
+   else d=await api('/search/multi',{query:B.q,page:B.page,include_adult:false});
+   d.results=(d.results||[]).filter(m=>m.media_type!=='person'&&m.poster_path);
+   if(B.type==='anime')d.results=d.results.filter(m=>isTV(m)&&(m.genre_ids||[]).includes(16)&&(m.origin_country||[]).includes('JP'));
+  }else{
+   const endpoint=B.type==='movie'?'/discover/movie':'/discover/tv';
+   d=await api(endpoint,searchQuery());
+   d.results=(d.results||[]).filter(m=>m.poster_path);
+  }
+  const h=(d.results||[]).map(card).join('');
+  if(reset)gr.innerHTML=h||'<p class="empty">Nothing found. Try another search or filter.</p>';else gr.insertAdjacentHTML('beforeend',h);
+  const more=$('#more');if(more)more.style.display=B.page<(d.total_pages||0)&&d.results?.length?'':'none';
+ }catch{gr.innerHTML='<p class="empty">Could not load results. Check your connection.</p>'}
+}
 async function browse(){
- view.innerHTML=`<div class="pg"><h1>Search</h1><input id="sq" class="sbar" type="search" placeholder="Search movies" value="${esc(B.q)}" aria-label="Search movies"><div class="chips" id="chips"></div><select id="sort" aria-label="Sort"><option value="popularity.desc">Most popular</option><option value="vote_average.desc">Highest rated</option><option value="primary_release_date.desc">Newest</option><option value="revenue.desc">Box office</option></select><div class="grid" id="gr"></div><button class="btn more" id="more">Load more</button></div>`;
- const sort=$('#sort');sort.value=B.sort;sort.style.display=B.q?'none':'';
- sort.onchange=e=>{B.sort=e.target.value;B.page=1;fill(true)};
- let qt;$('#sq').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{B.q=e.target.value.trim();B.page=1;sort.style.display=B.q?'none':'';fill(true)},400)};
- $('#more').onclick=()=>{B.page++;fill(false)};B.page=1;fill(true);
- if(!B.genres)try{B.genres=(await api('/genre/movie/list')).genres}catch{B.genres=[]}
- const ch=$('#chips');if(!ch)return;
- ch.innerHTML=[{id:'',name:'All'},...B.genres].map(g=>`<button class="chip ${String(g.id)===B.g?'on':''}" data-g="${g.id}">${esc(g.name)}</button>`).join('');
- ch.onclick=e=>{const g=e.target.dataset.g;if(g===undefined)return;B.g=g;B.q='';$('#sq').value='';sort.style.display='';B.page=1;[...ch.children].forEach(c=>c.classList.toggle('on',c.dataset.g===g));fill(true)}}
-async function fill(reset){const gr=$('#gr');if(!gr)return;if(reset)gr.innerHTML='<div class="sk"></div>'.repeat(12);
- try{const d=B.q?await api('/search/movie',{query:B.q,page:B.page}):await api('/discover/movie',{with_genres:B.g,sort_by:B.sort,page:B.page,'vote_count.gte':B.sort==='popularity.desc'?0:300,include_adult:false});
-  const h=d.results.map(card).join('');if(reset)gr.innerHTML=h||'<p class="empty">No movies found. Try another search or genre.</p>';else gr.insertAdjacentHTML('beforeend',h);
-  $('#more').style.display=B.page<d.total_pages&&d.results.length?'':'none'}catch{gr.innerHTML='<p class="empty">Could not load movies. Check your connection.</p>'}}
-
+ view.innerHTML=\`<div class="pg search-page"><h1>Search</h1>
+ <div class="search-line"><button class="filter-toggle" id="filterToggle" aria-expanded="false">\${I.x}<span>Filters</span></button>
+ <div class="search-wrap"><input id="sq" class="sbar" type="search" placeholder="Search movies, series or anime" value="\${esc(B.q)}" aria-label="Search movies, series or anime" autocomplete="off"><div id="suggestions" class="suggestions"></div></div></div>
+ <div class="search-pop" id="searchPop"><div class="filter-head"><b>Browse</b><button class="chip" id="closeFilters">Done</button></div>
+ <div class="filter-group"><small>Type</small><div class="chips" id="searchTypes"></div></div>
+ <div class="filter-group"><small>Genre</small><div class="chips" id="searchGenres"></div></div>
+ <div class="filter-group"><small>Sort</small><select id="sort" aria-label="Sort"><option value="popularity.desc">Most popular</option><option value="vote_average.desc">Highest rated</option><option value="primary_release_date.desc">Newest</option><option value="revenue.desc">Box office</option></select></div></div>
+ <div class="search-meta"><span id="searchStatus">Everything</span><span>Suggestions appear as you type</span></div>
+ <div class="grid search-grid" id="gr"></div><button class="btn more" id="more">Load more</button></div>\`;
+ $('#filterToggle').onclick=()=>{B.filterOpen=!B.filterOpen;$('#searchPop').classList.toggle('on',B.filterOpen);$('#filterToggle').classList.toggle('on',B.filterOpen);$('#filterToggle').setAttribute('aria-expanded',B.filterOpen)};
+ $('#closeFilters').onclick=()=>{B.filterOpen=false;$('#searchPop').classList.remove('on');$('#filterToggle').classList.remove('on')};
+ $('#sort').onchange=e=>{B.sort=e.target.value;B.page=1;fill(true)};
+ $('#more').onclick=()=>{B.page++;fill(false)};
+ let qt;$('#sq').oninput=e=>{clearTimeout(qt);B.q=e.target.value.trim();B.page=1;renderSuggestions();qt=setTimeout(async()=>{await suggestions(B.q);fill(true)},180)};
+ $('#sq').onfocus=()=>renderSuggestions();
+ $('#searchTypes').onclick=e=>{const type=e.target.closest('[data-type]')?.dataset.type;if(!type)return;B.type=type;B.g='';B.page=1;B.q='';$('#sq').value='';B.suggest=[];renderSearchFilters();const st=$('#searchStatus');if(st)st.textContent=SEARCH_TYPES.find(x=>x[0]===B.type)?.[1]||'Everything';fill(true)};
+ $('#searchGenres').onclick=e=>{const g=e.target.closest('[data-g]')?.dataset.g;if(g===undefined)return;B.g=g;B.page=1;fill(true);renderSearchFilters()};
+ B.page=1;renderSearchFilters();$('#sort').value=B.sort;fill(true);loadSearchMeta();
+ const st=$('#searchStatus');if(st)st.textContent=SEARCH_TYPES.find(x=>x[0]===B.type)?.[1]||'Everything';
+}
 /* ---------- library ---------- */
 let tab='list';
 function mylist(){const L=lists[tab];
@@ -193,7 +263,37 @@ async function filmBtns(m){let id;try{id=await findFilm(m)}catch{}
  cur.film=id;$('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="film">Full movie</button>');
  const d=$('#dlb');if(d){d.hidden=false;d.dataset.dl=id;d.dataset.t=m.title}
  const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`)}
-async function openDetail(id,auto){killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');
+async function openSeriesDetail(id,auto){
+ killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();
+ cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openSeriesDetail(id,auto);
+ let m;try{m=await api('/tv/'+id,{append_to_response:'credits,similar,videos'})}catch{}
+ if(cur.tok!==tok)return;
+ if(!m){box.innerHTML=\`<div class="wpg"><div class="wp">\${topbar}</div><div class="wi"><p class="mt" style="margin-bottom:12px">Could not load this series. Check your connection.</p><button class="btn" data-retry>Retry</button></div></div>\`;return}
+ const vs=(m.videos?.results||[]).filter(x=>x.site==='YouTube'),tr=vs.find(x=>x.type==='Trailer'&&x.official)||vs.find(x=>x.type==='Trailer')||vs[0];
+ cur.m=m;cur.tr=tr&&tr.key;cur.kind='tv';cur.seriesId=id;cur.season=m.seasons?.find(s=>s.season_number>0)?.season_number??0;
+ const cast=(m.credits?.cast||[]).slice(0,14).map(c=>\`<div class="cm">\${c.profile_path?\`<img loading="lazy" src="\${IMG}w185\${c.profile_path}" alt="">\`:\`<div>\${esc((c.name||'?')[0])}</div>\`}<b>\${esc(c.name)}</b><small>\${esc(c.character||'')}</small></div>\`).join('');
+ const bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
+ const isS=has('list',m.id),isF=has('fav',m.id);
+ box.innerHTML=\`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(\${bg})">\${cur.tr?\`<button class="big" data-startp aria-label="Play trailer">\${I.play}</button>\`:''}</div>\${topbar}</div>
+ <div class="wi"><div class="series-kicker">SERIES</div><h1>\${esc(titleOf(m))}</h1>\${m.tagline?\`<div class="tg">\${esc(m.tagline)}</div>\`:''}
+ <div class="wm"><span class="rt">\${I.star}\${(m.vote_average||0).toFixed(1)}</span><span>\${yr(m)}</span><span>\${m.number_of_seasons||0} seasons</span><span>\${m.number_of_episodes||0} episodes</span></div>
+ <div class="gs">\${(m.genres||[]).map(g=>\`<span>\${esc(g.name)}</span>\`).join('')}</div>
+ <div class="src" id="src">\${cur.tr?'<button class="chip" data-src="tr">Trailer</button>':'<span class="mt nf">No trailer available</span>'}</div>
+ <div class="acts"><button class="act \${isS?'on':''}" data-tg="list">\${isS?I.bmF:I.bm}<span>\${isS?'Saved':'Save'}</span></button><button class="act \${isF?'on':''}" data-tg="fav">\${isF?I.heartF:I.heart}<span>\${isF?'Favorited':'Favorite'}</span></button></div>
+ <p class="ovw" id="ovw">\${esc(m.overview)||'No overview available.'}</p>
+ <div class="season-bar"><label for="seasonSelect">Season</label><select id="seasonSelect">\${(m.seasons||[]).filter(s=>s.season_number>=0).map(s=>\`<option value="\${s.season_number}" \${s.season_number===cur.season?'selected':''}>Season \${s.season_number}\${s.episode_count?\` · \${s.episode_count} episodes\`:''}</option>\`).join('')}</select></div>
+ <div id="episodes"><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+ \${cast?\`<h3>Cast</h3><div class="cast">\${cast}</div>\`:''}</div></div>\`;
+ $('#seasonSelect').onchange=e=>loadSeason(id,+e.target.value);loadSeason(id,cur.season);if(auto==='trailer')startTrailer();
+}
+async function loadSeason(seriesId,season){
+ const wrap=$('#episodes');if(!wrap)return;cur.season=season;wrap.innerHTML='<div class="ln"></div><div class="ln"></div><div class="ln"></div>';
+ try{const d=await api('/tv/'+seriesId+'/season/'+season);if(!$('#episodes'))return;const eps=d.episodes||[];
+  wrap.innerHTML=\`<div class="episode-head"><h3>Episodes</h3><span>\${eps.length} episodes</span></div><div class="episodes">\${eps.map(e=>\`<button class="episode" data-episode="\${e.episode_number}" data-series="\${seriesId}" data-season="\${season}"><span class="ep-img">\${e.still_path?\`<img loading="lazy" src="\${IMG}w300\${e.still_path}" alt="">\`:'<span></span>'}<b>\${e.episode_number}</b></span><span class="ep-copy"><strong>\${esc(e.name||'Episode '+e.episode_number)}</strong><small>\${e.runtime?e.runtime+' min · ':''}\${esc(e.air_date||'')}</small><em>\${esc(e.overview||'')}</em></span><i>\${I.play}</i></button>\`).join('')}</div>\`;
+ }catch{wrap.innerHTML='<p class="empty">Episodes could not load right now.</p>'}
+}
+function playEpisode(seriesId,season,episode){if(cur.tr){toast('Episode selected. Connect your episode video source here next.');startTrailer();return}toast(titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0'))}
+async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeriesDetail(id,auto);killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');
  box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openDetail(id,auto);
  let m;try{m=await api('/movie/'+id,{append_to_response:'credits,similar,videos'})}catch{}
  if(cur.tok!==tok)return;
@@ -249,8 +349,8 @@ document.addEventListener('click',e=>{const t=e.target;
  if(t.id==='sheet')return act('sc');
  const a=t.closest('[data-act]');if(a){act(a.dataset.act,a);return}
  if(t.closest('#wp')&&wpClick(t))return;
- if(t.closest('[data-startp]')){cur.film?startFilm(cur.film,cur.m.title):startTrailer();return}
- const sc=t.closest('[data-src]');if(sc){sc.dataset.src==='film'?startFilm(cur.film,cur.m.title):startTrailer();return}
+ if(t.closest('[data-startp]')){cur.film?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
+ const sc=t.closest('[data-src]');if(sc){sc.dataset.src==='film'?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
  const pl=t.closest('[data-play]');if(pl){openDetail(pl.dataset.play,'trailer');return}
  const fi=t.closest('[data-ia]');if(fi){openFilm(fi.dataset.ia,fi.dataset.t);return}
@@ -260,9 +360,10 @@ document.addEventListener('click',e=>{const t=e.target;
  if(t.closest('[data-close]')){closeDetail();return}
  if(t.closest('[data-retry]')){cur.rt&&cur.rt();return}
  const tb=t.closest('[data-tab]');if(tb){tab=tb.dataset.tab;mylist();return}
- const c=t.closest('[data-id]');if(c)openDetail(c.dataset.id)});
+ const ep=t.closest('[data-episode]');if(ep){playEpisode(ep.dataset.series,ep.dataset.season,ep.dataset.episode);return}
+ const c=t.closest('[data-id]');if(c)openDetail(c.dataset.id,null,c.dataset.kind||'movie')});
 const warm=e=>{const c=e.target.closest&&e.target.closest('[data-id],[data-ia]');if(!c||c._w)return;c._w=1;
- if(c.dataset.id)api('/movie/'+c.dataset.id,{append_to_response:'credits,similar,videos'}).catch(()=>{});else jget('https://archive.org/metadata/'+c.dataset.ia).catch(()=>{})};
+ if(c.dataset.id)(c.dataset.kind==='tv'?api('/tv/'+c.dataset.id,{append_to_response:'credits,similar,videos'}):api('/movie/'+c.dataset.id,{append_to_response:'credits,similar,videos'})).catch(()=>{});else jget('https://archive.org/metadata/'+c.dataset.ia).catch(()=>{})};
 document.addEventListener('pointerover',warm,{passive:true});document.addEventListener('touchstart',warm,{passive:true});
 document.addEventListener('keydown',e=>{if(e.target.matches('input'))return;
  if(e.key==='Enter'&&(e.target.dataset.id||e.target.dataset.ia))return e.target.click();
