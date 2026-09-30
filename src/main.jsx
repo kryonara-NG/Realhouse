@@ -30,17 +30,6 @@ function ReelhouseShell() {
       <div className="ov" id="modal" />
       <div className="ov" id="sheet" />
       <div id="bar" />
-      <div className="ov" id="setup">
-        <div className="sbox">
-          <h1>Reelhouse</h1>
-          <p>Movie data comes from TMDB. Paste your free API key to start: create an account at{" "}
-            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>{" "}
-            and copy the "API Key" (v3) or the "API Read Access Token".</p>
-          <input id="key" placeholder="TMDB API key or read access token" autoComplete="off" />
-          <div id="err" />
-          <button className="btn pri" id="ksave">Save and start</button>
-        </div>
-      </div>
       <div id="toast" />
     </>
   );
