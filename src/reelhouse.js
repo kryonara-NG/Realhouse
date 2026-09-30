@@ -1,3 +1,5 @@
+import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
+
 export function mountReelhouse(){
 
 const sv=p=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`,F='fill="currentColor" stroke="none"';
@@ -253,23 +255,35 @@ async function startTrailer(){const k=cur.tr;if(!k)return toast('No trailer avai
  const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
  const msg=location.protocol==='file:'?'YouTube blocks trailers when this page is opened as a file. Host it (GitHub Pages or Netlify) or run a local server.':'This trailer cannot be played here.';
  yp=new YT.Player('yt',{videoId:k,playerVars:v,events:{onReady:e=>{e.target.setVolume(80);e.target.playVideo()},onStateChange:e=>{setPP(e.data);spin(e.data===3)},onError:()=>showErr(msg,k)}})}
-async function startFilm(id,title){killPlayer();cur.rt=()=>startFilm(id,title);setSrc('film');mount('');
- let u;try{u=await filmSrc(id)}catch{}
+async function startFilm(source,title){killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');mount('');
+ let u=typeof source==='string'?null:source?.url;
+ if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
  if(!$('#wp'))return;
- if(!u)return showErr('This film could not be loaded. The file may be unavailable.');
- $('#wp').insertAdjacentHTML('afterbegin',`<video id="vd" playsinline autoplay src="${esc(u)}"></video>`);
- const v=$('#vd');yp=vAdapter(v);pm={id};v.volume=.8;const t=S.prog[id];
+ if(!u)return showErr('This title is marked Coming to Reelhouse soon because no playable direct file is available.');
+ $('#wp').insertAdjacentHTML('afterbegin',`<video id="vd" playsinline autoplay preload="metadata" src="${esc(u)}"></video>`);
+ const v=$('#vd');yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source};v.volume=.8;const t=S.prog[pm.id];
  if(t)v.addEventListener('loadedmetadata',()=>{v.currentTime=t},{once:true});
  v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1)});v.addEventListener('canplay',()=>spin(0));
  v.addEventListener('pause',()=>setPP(2));v.addEventListener('ended',()=>setPP(0));
  v.addEventListener('error',()=>showErr('Playback failed. This file may not play in your browser.'));
  remember(cur.m)}
-async function filmBtns(m){let id;try{id=await findFilm(m)}catch{}
+async function filmBtns(m){
  if(cur.m!==m||!$('#src'))return;
- if(!id){$('#src').insertAdjacentHTML('beforeend','<span class="mt nf">Full movie is not in the free library</span>');return}
- cur.film=id;$('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="film">Full movie</button>');
- const d=$('#dlb');if(d){d.hidden=false;d.dataset.dl=id;d.dataset.t=m.title}
- const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`)}
+ $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
+ let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
+ if(cur.m!==m||!$('#src'))return;
+ const st=$('#sourceStatus');
+ if(source.status!=='ready'){
+   if(st){st.className='source-state coming';st.textContent='Coming to Reelhouse soon'}
+   return;
+ }
+ cur.source=source;cur.film=source.identifier||null;
+ if(st)st.remove();
+ $('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="film">Full movie</button>');
+ const d=$('#dlb');
+ if(d&&source.identifier){d.hidden=false;d.dataset.dl=source.identifier;d.dataset.t=m.title}
+ const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`);
+}
 async function openSeriesDetail(id,auto){
  killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();
  cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openSeriesDetail(id,auto);
@@ -299,7 +313,18 @@ async function loadSeason(seriesId,season){
   wrap.innerHTML=`<div class="episode-head"><h3>Episodes</h3><span>${eps.length} episodes</span></div><div class="episodes">${eps.map(e=>`<button class="episode" data-episode="${e.episode_number}" data-series="${seriesId}" data-season="${season}"><span class="ep-img">${e.still_path?`<img loading="lazy" src="${IMG}w300${e.still_path}" alt="">`:'<span></span>'}<b>${e.episode_number}</b></span><span class="ep-copy"><strong>${esc(e.name||'Episode '+e.episode_number)}</strong><small>${e.runtime?e.runtime+' min · ':''}${esc(e.air_date||'')}</small><em>${esc(e.overview||'')}</em></span><i>${I.play}</i></button>`).join('')}</div>`;
  }catch{wrap.innerHTML='<p class="empty">Episodes could not load right now.</p>'}
 }
-function playEpisode(seriesId,season,episode){if(cur.tr){toast('Episode selected. Connect your episode video source here next.');startTrailer();return}toast(titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0'))}
+async function playEpisode(seriesId,season,episode){
+ const title=titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0');
+ const ep={id:seriesId,media_type:'tv',name:title};
+ let source;try{source=await resolveEpisodeSource(ep,season,episode)}catch{source={status:'coming-soon'}}
+ const btn=document.querySelector(`[data-episode="${episode}"][data-series="${seriesId}"][data-season="${season}"]`);
+ if(source.status!=='ready'){
+   if(btn){btn.classList.add('coming');const copy=btn.querySelector('.ep-copy');if(copy&&!copy.querySelector('.source-state'))copy.insertAdjacentHTML('beforeend','<em class="source-state coming">Coming to Reelhouse soon</em>')}
+   toast('Coming to Reelhouse soon');
+   return;
+ }
+ cur.source=source;cur.m=cur.m||ep;startFilm(source,title);
+}
 async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeriesDetail(id,auto);killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');
  box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openDetail(id,auto);
  let m;try{m=await api('/movie/'+id,{append_to_response:'credits,similar,videos'})}catch{}
@@ -356,8 +381,8 @@ document.addEventListener('click',e=>{const t=e.target;
  if(t.id==='sheet')return act('sc');
  const a=t.closest('[data-act]');if(a){act(a.dataset.act,a);return}
  if(t.closest('#wp')&&wpClick(t))return;
- if(t.closest('[data-startp]')){cur.film?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
- const sc=t.closest('[data-src]');if(sc){sc.dataset.src==='film'?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
+ if(t.closest('[data-startp]')){cur.source?startFilm(cur.source,titleOf(cur.m)):cur.film?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
+ const sc=t.closest('[data-src]');if(sc){sc.dataset.src==='film'?(cur.source?startFilm(cur.source,titleOf(cur.m)):startFilm(cur.film,titleOf(cur.m))):startTrailer();return}
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
  const pl=t.closest('[data-play]');if(pl){openDetail(pl.dataset.play,'trailer');return}
  const fi=t.closest('[data-ia]');if(fi){openFilm(fi.dataset.ia,fi.dataset.t);return}
