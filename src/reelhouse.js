@@ -1,4 +1,4 @@
-import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
+import { resolveMovieSource, resolveEpisodeSource, checkVidSrcAvailability } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
 
 export function mountReelhouse(){
@@ -19,6 +19,18 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let KEY=TMDB_READ_TOKEN,lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
 let installPrompt=null;
+const WELCOME_KEY='rh:welcomeSeen';
+const INBOX_KEY='rh:inbox';
+const SUBS_KEY='rh:subtitlePrefs';
+const VIDSRC_ORIGINS=['https://vidsrc.sh','https://vidsrcme.ru','https://vidsrc.to','https://vidsrc.cc','https://vidsrc.xyz','https://vidsrc.pm'];
+const inbox=()=>store.get(INBOX_KEY,[]);
+function addInbox(item){const list=inbox();const key=item.key||String(Date.now());if(list.some(x=>x.key===key))return;list.unshift({...item,key,at:item.at||Date.now()});store.set(INBOX_KEY,list.slice(0,60));renderNotificationBadge();}
+function renderNotificationBadge(){const b=$('#notifBadge');if(!b)return;const n=inbox().filter(x=>!x.read).length;b.hidden=!n;b.textContent=n>99?'99+':String(n)}
+function openNotifications(){const box=$('#notifications');if(!box)return;const list=inbox();box.innerHTML=`<div class="notification-page"><header class="notification-head"><div><span class="welcome-kicker">REELHOUSE</span><h1>Notifications</h1><p>${list.length?'A few things worth seeing.':'You are all caught up.'}</p></div><button class="icon-btn notification-close" data-notifications-close aria-label="Close notifications">${I.x}</button></header><div class="notification-list">${list.length?list.map(x=>`<button class="notification-card ${x.read?'read':''}" data-notification-key="${esc(x.key)}" data-notification-url="${esc(x.url||'#/home')}"><span class="notification-dot"></span><span><b>${esc(x.title)}</b><small>${esc(x.body||'')}</small><time>${new Date(x.at).toLocaleString()}</time></span></button>`).join(''):'<div class="notification-empty"><div>✓</div><h2>Nothing new</h2><p>Fresh releases and useful Reelhouse updates will show up here.</p></div>'}</div><button class="chip notification-clear" data-notifications-clear>Mark everything read</button></div>`;box.classList.add('on');box.setAttribute('aria-hidden','false');store.set(INBOX_KEY,list.map(x=>({...x,read:true})));renderNotificationBadge()}
+function closeNotifications(){const box=$('#notifications');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true')}
+function openWelcome(){const box=$('#welcomeModal');if(!box||store.get(WELCOME_KEY,false))return;box.classList.add('on');box.setAttribute('aria-hidden','false');document.body.classList.add('welcome-open')}
+function closeWelcome(){const box=$('#welcomeModal');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true');document.body.classList.remove('welcome-open');store.set(WELCOME_KEY,true)}
+
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();
 const mem=new Map();let pend=0,bt;
@@ -34,6 +46,10 @@ function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
  for(const k in q)u.searchParams.set(k,q[k]);
  return jget(u.href,h,!/^\/movie\/\d/.test(p))}
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
+const subtitlePrefs=()=>store.get(SUBS_KEY,['en']);
+function subtitleQuery(){return subtitlePrefs().filter(Boolean).slice(0,3).join(',')}
+function buildVidSrcUrl(base,params={}){const u=new URL(base);const subs=subtitleQuery();if(subs)u.searchParams.set('ds_lang',subs);Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v))});return u.toString()}
+
 let pendingWatch=null;
 const requireSession=resume=>{if(session&&acct)return true;pendingWatch=resume||null;authSheet('in');toast('Log in to watch');return false};
 const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.name);
@@ -222,7 +238,7 @@ async function checkMovieNotifications(seed=false){
   if(seed){ns.seen=movies.slice(0,40).map(x=>x.id);store.set('rh:notifications',ns);return}
   const fresh=movies.filter(x=>!seen.has(x.id)&&x.poster_path).slice(0,3);
   ns.seen=[...movies.map(x=>x.id),...(ns.seen||[])].filter((v,i,a)=>a.indexOf(v)===i).slice(0,80);store.set('rh:notifications',ns);
-  if(fresh.length){await showReelhouseNotification(fresh.length===1?'New movie on Reelhouse':'New movies on Reelhouse',fresh.map(x=>x.title).join(', '))}
+  if(fresh.length){const title=fresh.length===1?'New movie on Reelhouse':'New movies on Reelhouse';const body=fresh.map(x=>x.title).join(', ');addInbox({key:'movies:'+fresh.map(x=>x.id).join(','),title,body,url:'#/home'});await showReelhouseNotification(title,body,'#/home')}
  }catch{}
 }
 async function enableMovieNotifications(){
@@ -325,16 +341,21 @@ async function startTrailer(){if(!requireSession(()=>startTrailer()))return;cons
 function mountVidSrc(source,title){
  const w=$('#wp');if(!w)return;
  const u=source?.url;if(!u)return;
- w.innerHTML=`<iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="origin"></iframe>${topbar}`;
+ w.innerHTML=`<div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="origin"></iframe>${topbar}`;
  const onMessage=e=>{
    const frame=$('#vidsrc-frame');if(!frame||e.source!==frame.contentWindow)return;
+   if(e.origin&&!VIDSRC_ORIGINS.includes(e.origin))return;
    const d=e.data;
    if(!d||d.type!=='PLAYER_EVENT'||!d.data)return;
    const info=d.data.player_info||{};
    const id=info.tmdb||info.imdb||cur.m?.id;
    const progress=Number(d.data.player_progress);
    if(id&&Number.isFinite(progress)){S.prog[id]=progress;store.set('prog',S.prog)}
-   if(d.data.player_status==='completed'&&id){S.prog[id]=0;store.set('prog',S.prog)}
+   if(d.data.player_status==='completed'&&id){S.prog[id]=0;store.set('prog',S.prog);addInbox({key:'finished:'+id,title:'Finished watching',body:title+' is complete. See what to watch next.',url:'#/home'})}
+   const duration=Number(d.data.player_duration)||0;
+   const pct=duration>0&&Number.isFinite(progress)?Math.min(100,Math.max(0,progress/duration*100)):0;
+   const line=$('#playerProgress');if(line)line.style.width=pct+'%';
+   const pctText=$('#playerProgressText');if(pctText)pctText.textContent=pct>0?Math.round(pct)+'% watched':'Starting…';
  };
  window.addEventListener('message',onMessage);
  cur.vidsrcCleanup=()=>window.removeEventListener('message',onMessage);
@@ -345,7 +366,15 @@ function mountVidSrc(source,title){
 async function startFilm(source,title){
  if(!requireSession(()=>startFilm(source,title)))return;
  killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');
- if(source?.type==='vidsrc'||source?.type==='iframe'){mountVidSrc(source,title);return}
+ if(source?.type==='vidsrc'||source?.type==='iframe'){
+   const raw=source.url;
+   try{
+     const u=new URL(raw);
+     const subs=subtitleQuery();if(subs)u.searchParams.set('ds_lang',subs);
+     mountVidSrc({...source,url:u.toString()},title);
+   }catch{mountVidSrc(source,title)}
+   return
+ }
  mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
@@ -362,7 +391,10 @@ async function startFilm(source,title){
 async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
  $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
- let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
+ let source;try{
+   const availability=await checkVidSrcAvailability('movie',m?.id);
+   if(availability.available===false){source={status:'coming-soon'}}else source=await resolveMovieSource(m);
+ }catch{source=await resolveMovieSource(m).catch(()=>({status:'coming-soon'}))}
  if(cur.m!==m||!$('#src'))return;
  const st=$('#sourceStatus');
  if(source.status!=='ready'){
@@ -410,7 +442,11 @@ async function playEpisode(seriesId,season,episode){
  if(!requireSession(()=>playEpisode(seriesId,season,episode)))return;
  const title=titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0');
  const ep={id:seriesId,media_type:'tv',name:title};
- let source;try{source=await resolveEpisodeSource(ep,season,episode)}catch{source={status:'coming-soon'}}
+ const resumeKey=seriesId+':'+season+':'+episode;const resumeAt=Number(S.prog[resumeKey]||0);
+ let source;try{
+   const availability=await checkVidSrcAvailability('tv',seriesId,season,episode);
+   if(availability.available===false){source={status:'coming-soon'}}else source=await resolveEpisodeSource(ep,season,episode,resumeAt);
+ }catch{source={status:'coming-soon'}}
  const btn=document.querySelector(`[data-episode="${episode}"][data-series="${seriesId}"][data-season="${season}"]`);
  if(source.status!=='ready'){
    if(btn){btn.classList.add('coming');const copy=btn.querySelector('.ep-copy');if(copy&&!copy.querySelector('.source-state'))copy.insertAdjacentHTML('beforeend','<em class="source-state coming">Coming to Reelhouse soon</em>')}
@@ -504,6 +540,18 @@ document.addEventListener('keydown',e=>{if(e.target.matches('input'))return;
  if(e.key==='/'&&$('#sq')){e.preventDefault();$('#sq').focus()}});
 $('#dice').onclick=surprise;
 route();
+renderNotificationBadge();
+openWelcome();
+document.addEventListener('click',e=>{
+ const t=e.target;
+ if(t.closest('#notifBell')){openNotifications();return}
+ if(t.closest('[data-notifications-close]')){closeNotifications();return}
+ if(t.closest('[data-notifications-clear]')){store.set(INBOX_KEY,inbox().map(x=>({...x,read:true})));renderNotificationBadge();openNotifications();return}
+ const n=t.closest('[data-notification-key]');if(n){store.set(INBOX_KEY,inbox().map(x=>x.key===n.dataset.notificationKey?{...x,read:true}:x));renderNotificationBadge();closeNotifications();if(n.dataset.notificationUrl)location.hash=n.dataset.notificationUrl;return}
+ if(t.closest('[data-welcome-close],[data-welcome-enter]')){closeWelcome();return}
+ if(t.closest('[data-player-cinema]')){const wp=$('#wp');wp?.classList.toggle('cinema-focus');return}
+});
+navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REELHOUSE_NOTIFICATION_CLICK'){const u=e.data.url||'#/home';location.hash=u;closeNotifications()}});
 let notifTimer=null;
 function startNotificationMonitor(){clearInterval(notifTimer);const ns=notificationState();if(ns.enabled&&'Notification' in window&&Notification.permission==='granted'){checkMovieNotifications(false);notifTimer=setInterval(()=>checkMovieNotifications(false),30*60*1000)}}
 startNotificationMonitor();
