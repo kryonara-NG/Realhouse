@@ -334,7 +334,6 @@ function mylist(){const L=lists[tab];
 /* ---------- app install ---------- */
 const APK_URL=['https:','github.com','kryonara-NG','Realhouse','releases','latest','download','Reelhouse.apk'].join('/');
 const RELEASE_API='https://api.github.com/repos/kryonara-NG/Realhouse/releases/latest';
-const APK_URL='https://github.com/kryonara-NG/Realhouse/releases/latest/download/Reelhouse.apk';
 const NativePlugins=()=>globalThis.Capacitor?.Plugins||{};
 const ImpactStyle={Light:'LIGHT',Medium:'MEDIUM',Heavy:'HEAVY'};
 const haptic=async(style=ImpactStyle.Light)=>{try{const p=NativePlugins().Haptics;if(p?.impact){await p.impact({style});return}}catch{}try{navigator.vibrate?.(12)}catch{}};
