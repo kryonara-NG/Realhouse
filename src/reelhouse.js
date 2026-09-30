@@ -349,7 +349,7 @@ async function setupReminderNotifications(){
   const ids=pending.notifications.filter(n=>n.channelId===REMINDER_CHANNEL).map(n=>n.id);
   if(ids.length)await LocalNotifications.cancel({notifications:ids.map(id=>({id}))});
   const now=Date.now();
-  await LocalNotifications.schedule({notifications:Array.from({length:REMINDER_COUNT},(_,i)=>({id:9200+i,title:'Reelhouse',body:'Your next watch is waiting.',channelId:REMINDER_CHANNEL,smallIcon:'ic_stat_icon_config_sample',schedule:{at:new Date(now+(i+1)*20*60*1000),allowWhileIdle:true},extra:{url:'#/home'}}))});
+  await LocalNotifications.schedule({notifications:Array.from({length:REMINDER_COUNT},(_,i)=>({id:9200+i,title:'Reelhouse',body:'Your next watch is waiting.',channelId:REMINDER_CHANNEL,schedule:{at:new Date(now+(i+1)*20*60*1000),allowWhileIdle:true},extra:{url:'#/home'}}))});
   store.set('rh:20minReminders',true);
   return true;
  }catch{return false}
