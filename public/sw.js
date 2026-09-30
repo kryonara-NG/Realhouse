@@ -8,3 +8,12 @@ self.addEventListener("fetch", event => {
   if (url.origin !== location.origin) return;
   event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(hit => hit || caches.match("/index.html"))));
 });
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = event.notification.data?.url || "/#/home";
+  event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(list => {
+    const existing=list.find(c => "focus" in c);
+    if(existing){existing.postMessage({type:"REELHOUSE_NOTIFICATION_CLICK",url:target});return existing.focus();}
+    return clients.openWindow(target);
+  }));
+});
