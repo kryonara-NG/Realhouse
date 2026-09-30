@@ -29,7 +29,7 @@ function mappedSource(m,season,episode){
   return null;
 }
 
-const DEFAULT_BASE='https://vidsrcme.ru';
+const DEFAULT_BASE='https://vidsrc.sh';
 const MIRRORS=['https://vidsrcme.ru','https://vidsrc.sh','https://vidsrc.to','https://vidsrc.cc','https://vidsrc.xyz','https://vidsrc.pm'];
 const VIDSRC_BASE=String(globalThis.REELHOUSE_VIDSRC_BASE||import.meta.env.VITE_VIDSRC_BASE||DEFAULT_BASE).replace(/\\/$/,'');
 export const VIDSRC_MIRRORS=[VIDSRC_BASE,...MIRRORS.filter(x=>x!==VIDSRC_BASE)];
