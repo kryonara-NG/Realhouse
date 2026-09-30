@@ -1,4 +1,4 @@
-import { resolveMovieSource, resolveEpisodeSource, checkVidSrcAvailability } from './playback/resolver.js';
+import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
 
 export function mountReelhouse(){
@@ -341,7 +341,7 @@ async function startTrailer(){if(!requireSession(()=>startTrailer()))return;cons
 function mountVidSrc(source,title){
  const w=$('#wp');if(!w)return;
  const u=source?.url;if(!u)return;
- w.innerHTML=`<div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="origin"></iframe>${topbar}`;
+ w.innerHTML=`<div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-progress" id="playerProgress"><span id="playerProgressFill"></span></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="origin"></iframe>${topbar}`;
  const onMessage=e=>{
    const frame=$('#vidsrc-frame');if(!frame||e.source!==frame.contentWindow)return;
    if(e.origin&&!VIDSRC_ORIGINS.includes(e.origin))return;
@@ -354,7 +354,7 @@ function mountVidSrc(source,title){
    if(d.data.player_status==='completed'&&id){S.prog[id]=0;store.set('prog',S.prog);addInbox({key:'finished:'+id,title:'Finished watching',body:title+' is complete. See what to watch next.',url:'#/home'})}
    const duration=Number(d.data.player_duration)||0;
    const pct=duration>0&&Number.isFinite(progress)?Math.min(100,Math.max(0,progress/duration*100)):0;
-   const line=$('#playerProgress');if(line)line.style.width=pct+'%';
+   const line=$('#playerProgressFill');if(line)line.style.width=pct+'%';
    const pctText=$('#playerProgressText');if(pctText)pctText.textContent=pct>0?Math.round(pct)+'% watched':'Starting…';
  };
  window.addEventListener('message',onMessage);
@@ -391,10 +391,7 @@ async function startFilm(source,title){
 async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
  $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
- let source;try{
-   const availability=await checkVidSrcAvailability('movie',m?.id);
-   if(availability.available===false){source={status:'coming-soon'}}else source=await resolveMovieSource(m);
- }catch{source=await resolveMovieSource(m).catch(()=>({status:'coming-soon'}))}
+ let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
  if(cur.m!==m||!$('#src'))return;
  const st=$('#sourceStatus');
  if(source.status!=='ready'){
@@ -443,10 +440,7 @@ async function playEpisode(seriesId,season,episode){
  const title=titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0');
  const ep={id:seriesId,media_type:'tv',name:title};
  const resumeKey=seriesId+':'+season+':'+episode;const resumeAt=Number(S.prog[resumeKey]||0);
- let source;try{
-   const availability=await checkVidSrcAvailability('tv',seriesId,season,episode);
-   if(availability.available===false){source={status:'coming-soon'}}else source=await resolveEpisodeSource(ep,season,episode,resumeAt);
- }catch{source={status:'coming-soon'}}
+ let source;try{source=await resolveEpisodeSource(ep,season,episode,resumeAt)}catch{source={status:'coming-soon'}}
  const btn=document.querySelector(`[data-episode="${episode}"][data-series="${seriesId}"][data-season="${season}"]`);
  if(source.status!=='ready'){
    if(btn){btn.classList.add('coming');const copy=btn.querySelector('.ep-copy');if(copy&&!copy.querySelector('.source-state'))copy.insertAdjacentHTML('beforeend','<em class="source-state coming">Coming to Reelhouse soon</em>')}
