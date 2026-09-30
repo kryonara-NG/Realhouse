@@ -22,7 +22,7 @@ function ReelhouseShell() {
       <nav id="tab" aria-label="Main">
         <a href="#/home" data-r="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg><span>Home</span></a>
         <a href="#/search" data-r="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg><span>Search</span></a>
-        <a href="#/list" data-r="list"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5 0-13z" /></svg><span>Library</span></a>
+        <a href="#/list" data-r="list"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5-7 5z" /></svg><span>Library</span></a>
         <a href="#/me" data-r="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-7 8-7s8 3 8 7" /></svg><span>Me</span></a>
       </nav>
       <main id="view" />
