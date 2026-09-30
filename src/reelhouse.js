@@ -1,5 +1,6 @@
 import { resolveMovieSource, resolveEpisodeSource, VIDSRC_MIRRORS } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
+import { registerPlugin } from '@capacitor/core';
 
 export function mountReelhouse(){
 
@@ -334,14 +335,14 @@ function mylist(){const L=lists[tab];
 /* ---------- app install ---------- */
 const APK_URL=['https:','github.com','kryonara-NG','Realhouse','releases','latest','download','Reelhouse.apk'].join('/');
 const RELEASE_API='https://api.github.com/repos/kryonara-NG/Realhouse/releases/latest';
-const NativePlugins=()=>globalThis.Capacitor?.Plugins||{};
+const Haptics=registerPlugin('Haptics');
+const LocalNotifications=registerPlugin('LocalNotifications');
 const ImpactStyle={Light:'LIGHT',Medium:'MEDIUM',Heavy:'HEAVY'};
-const haptic=async(style=ImpactStyle.Light)=>{try{const p=NativePlugins().Haptics;if(p?.impact){await p.impact({style});return}}catch{}try{navigator.vibrate?.(12)}catch{}};
+const haptic=async(style=ImpactStyle.Light)=>{try{await Haptics.impact({style});return}catch{}try{navigator.vibrate?.(12)}catch{}};
 const REMINDER_CHANNEL='reelhouse-reminders';
 const REMINDER_COUNT=72;
 async function setupReminderNotifications(){
  try{
-  const LocalNotifications=NativePlugins().LocalNotifications;if(!LocalNotifications)return false;
   const perm=await LocalNotifications.requestPermissions();
   if(perm.display!=='granted')return false;
   await LocalNotifications.createChannel({id:REMINDER_CHANNEL,name:'Reelhouse reminders',description:'Optional Reelhouse watch reminders',importance:3,sound:'default',vibration:true,lights:true});
