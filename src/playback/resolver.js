@@ -23,7 +23,7 @@ function mappedSource(m,season,episode){
   ];
   for(const k of keys){
     const x=map[k];
-    if(typeof x==='string')return {url:x,type:/\\.m3u8(?:$|\\?)/i.test(x)?'hls':'mp4',source:'configured'};
+    if(typeof x==='string')return {url:x,type:/\.m3u8(?:$|\?)/i.test(x)?'hls':'mp4',source:'configured'};
     if(x?.url)return {...x,source:x.source||'configured'};
   }
   return null;
@@ -31,7 +31,7 @@ function mappedSource(m,season,episode){
 
 const DEFAULT_BASE='https://vidsrc.sh';
 const MIRRORS=['https://vidsrc.sh','https://vidsrc2.ru','https://vidsrc.ir','https://vidsrcme.ru'];
-const VIDSRC_BASE=String(globalThis.REELHOUSE_VIDSRC_BASE||import.meta.env.VITE_VIDSRC_BASE||DEFAULT_BASE).replace(/\\/$/,'');
+const VIDSRC_BASE=String(globalThis.REELHOUSE_VIDSRC_BASE||import.meta.env.VITE_VIDSRC_BASE||DEFAULT_BASE).replace(/\/$/,'');
 export const VIDSRC_MIRRORS=[VIDSRC_BASE,...MIRRORS.filter(x=>x!==VIDSRC_BASE)];
 
 function vidsrcUrl(path,params={}){
