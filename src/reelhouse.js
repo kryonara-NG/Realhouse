@@ -1,4 +1,4 @@
-import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
+import { resolveMovieSource, resolveEpisodeSource, VIDSRC_MIRRORS } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
 
 export function mountReelhouse(){
@@ -452,13 +452,18 @@ async function startTrailer(){if(!requireSession(()=>startTrailer()))return;cons
  const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
  const msg=location.protocol==='file:'?'YouTube blocks trailers when this page is opened as a file. Host it (GitHub Pages or Netlify) or run a local server.':'This trailer cannot be played here.';
  yp=new YT.Player('yt',{videoId:k,playerVars:v,events:{onReady:e=>{e.target.setVolume(80);e.target.playVideo()},onStateChange:e=>{setPP(e.data);spin(e.data===3)},onError:()=>showErr(msg,k)}})}
+function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'');return h.includes('vidsrc')?('Source '+(i+1)):h}catch{return 'Source '+(i+1)}}
 function mountVidSrc(source,title){
  const w=$('#wp');if(!w)return;
  const u=source?.url;if(!u)return;
- w.innerHTML=`<div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-progress" id="playerProgress"><span id="playerProgressFill"></span></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="origin"></iframe>${topbar}`;
+ const currentOrigin=(()=>{try{return new URL(u).origin}catch{return ''}})();
+ const mirrors=VIDSRC_MIRRORS.slice(0,6);
+ const buttons=mirrors.map((m,i)=>`<button class="chip ${m===currentOrigin?'on':''}" data-vidsrc-mirror="${esc(m)}">${esc(mirrorName(m,i))}</button>`).join('');
+ w.innerHTML=`<div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-progress" id="playerProgress"><span id="playerProgressFill"></span></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><div class="player-source-bar"><span>Player source</span>${buttons}</div><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="strict-origin-when-cross-origin"></iframe>${topbar}`;
  const onMessage=e=>{
    const frame=$('#vidsrc-frame');if(!frame||e.source!==frame.contentWindow)return;
-   if(e.origin&&!VIDSRC_ORIGINS.includes(e.origin))return;
+   let frameOrigin='';try{frameOrigin=new URL(frame.src).origin}catch{}
+   if(frameOrigin&&e.origin!==frameOrigin)return;
    const d=e.data;
    if(!d||d.type!=='PLAYER_EVENT'||!d.data)return;
    const info=d.data.player_info||{};
@@ -469,7 +474,6 @@ function mountVidSrc(source,title){
    const duration=Number(d.data.player_duration)||0;
    const pct=duration>0&&Number.isFinite(progress)?Math.min(100,Math.max(0,progress/duration*100)):0;
    const line=$('#playerProgressFill');if(line)line.style.width=pct+'%';
-   const pctText=$('#playerProgressText');if(pctText)pctText.textContent=pct>0?Math.round(pct)+'% watched':'Starting…';
  };
  window.addEventListener('message',onMessage);
  cur.vidsrcCleanup=()=>window.removeEventListener('message',onMessage);
@@ -659,6 +663,19 @@ document.addEventListener('click',e=>{
  const n=t.closest('[data-notification-key]');if(n){store.set(INBOX_KEY,inbox().map(x=>x.key===n.dataset.notificationKey?{...x,read:true}:x));renderNotificationBadge();closeNotifications();if(n.dataset.notificationUrl)location.hash=n.dataset.notificationUrl;return}
  if(t.closest('[data-welcome-close],[data-welcome-enter]')){closeWelcome();return}
  if(t.closest('[data-player-cinema]')){const wp=$('#wp');wp?.classList.toggle('cinema-focus');return}
+ if(t.closest('[data-vidsrc-mirror]')){
+   const mirror=t.closest('[data-vidsrc-mirror]').dataset.vidsrcMirror;
+   const frame=$('#vidsrc-frame');
+   if(frame&&mirror){
+     try{
+       const u=new URL(frame.src);u.protocol='https:';u.host=new URL(mirror).host;
+       const next={...cur.source,url:u.toString()};
+       cur.source=next;
+       mountVidSrc(next,titleOf(cur.m||{}));
+     }catch{}
+   }
+   return;
+ }
 });
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REELHOUSE_NOTIFICATION_CLICK'){const u=e.data.url||'#/home';location.hash=u;closeNotifications()}});
 let notifTimer=null;
