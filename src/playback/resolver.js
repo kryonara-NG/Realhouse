@@ -87,18 +87,33 @@ async function archiveResolve(m){
   };
 }
 
+const VIDSRC_BASE=(globalThis.REELHOUSE_VIDSRC_BASE||'https://vidsrc-ip.com').replace(/\/$/,'');
+function vidsrcMovieSource(m){
+  if(!m?.id)return null;
+  return {
+    status:'ready',
+    type:'vidsrc',
+    source:'vidsrc',
+    url:`${VIDSRC_BASE}/embed/movie/${encodeURIComponent(m.id)}?autoplay=1`,
+    tmdb_id:m.id,
+    title:m.title||m.name||'Movie'
+  };
+}
+
 export async function resolveMovieSource(m){
   const key='movie:'+m?.id;
   const cached=readCache(key);
-  if(cached)return cached;
-  let result=mappedSource(m);
-  if(!result){
-    try{result=await archiveResolve(m)}catch{}
+  if(cached&&cached.source==='vidsrc')return cached;
+  const mapped=mappedSource(m);
+  if(mapped){
+    const result={...mapped,status:'ready'};
+    writeCache(key,result);
+    return result;
   }
-  result=result?{...result,status:'ready'}:{
+  const result=vidsrcMovieSource(m)||{
     status:'coming-soon',
     source:null,
-    reason:'No playable direct source is currently configured or available in the public archive.'
+    reason:'Missing TMDB movie id.'
   };
   writeCache(key,result);
   return result;
@@ -107,12 +122,24 @@ export async function resolveMovieSource(m){
 export async function resolveEpisodeSource(series,season,episode){
   const key=`tv:${series?.id}:${season}:${episode}`;
   const cached=readCache(key);
-  if(cached)return cached;
+  if(cached&&cached.source==='vidsrc')return cached;
   const mapped=mappedSource(series,season,episode);
-  const result=mapped?{...mapped,status:'ready'}:{
-    status:'coming-soon',
-    source:null,
-    reason:'No playable direct episode source is currently configured.'
+  if(mapped){
+    const result={...mapped,status:'ready'};
+    writeCache(key,result);
+    return result;
+  }
+  const id=series?.id;
+  if(!id)return {status:'coming-soon',source:null,reason:'Missing TMDB series id.'};
+  const result={
+    status:'ready',
+    type:'vidsrc',
+    source:'vidsrc',
+    url:`${VIDSRC_BASE}/embed/tv/${encodeURIComponent(id)}/${encodeURIComponent(season)}/${encodeURIComponent(episode)}?autoplay=1&autonext=1`,
+    tmdb_id:id,
+    season:Number(season),
+    episode:Number(episode),
+    title:series?.name||series?.title||'Series'
   };
   writeCache(key,result);
   return result;
