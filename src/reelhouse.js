@@ -212,8 +212,8 @@ function me(sub){const on=session&&acct;
  :`<div class="hi"><h1>Your seat is waiting</h1><p>Create a free account to keep your list and favorites, pick films up where you left off, and make the profile yours.</p><div><button class="btn" data-act="up">Sign up</button><button class="btn" data-act="in">Log in</button></div></div>`;
  view.innerHTML=`<div class="pg">${head}<div class="st"><div><b>${lists.list.length}</b>Saved</div><div><b>${lists.fav.length}</b>Favorites</div><div><b>${lists.recent.length}</b>Watched</div></div>
  <a class="mi" href="#/me/recent">${ICO.recent}<span>Recently watched<small>Pick up where you stopped</small></span><em>${I.r}</em></a>
- <a class="mi" href="#/me/downloads">${ICO.dl}<span>Downloads<small>Free films you saved</small></span><em>${I.r}</em></a>
  <a class="mi" href="#/me/settings">${ICO.set}<span>Settings<small>Theme and playback</small></span><em>${I.r}</em></a>
+ <a class="mi" href="#/app">${ICO.dl}<span>Download App<small>Get the latest Reelhouse Android app</small></span><em>${I.r}</em></a>
  ${on?'<button class="mi" data-act="out"><span>Log out</span></button>':''}</div>`}
 const sha=async s=>{try{return[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return btoa(s)}};
 function sheet(h){const e=$('#sheet');e.innerHTML=`<div class="dt sbox"><button class="x" data-act="sc" aria-label="Close">${I.x}</button>${h}</div>`;e.classList.add('on')}
@@ -261,7 +261,7 @@ function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove(
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
 async function startTrailer(){if(!requireSession(()=>startTrailer()))return;const k=cur.tr;if(!k)return toast('No trailer available for this movie');
- killPlayer();pm=null;cur.rt=startTrailer;setSrc('tr');mount('<div id="yt"></div>');remember(cur.m);
+ killPlayer();pm=null;cur.rt=startTrailer;setSrc('tr');mount('<div id="yt"></div><div class="watch-under"><button class="btn pri" data-watch-movie>Watch Movie</button></div>');remember(cur.m);
  try{await loadYT()}catch{return showErr('YouTube could not load. Check your connection.',k)}
  if(!$('#yt'))return;
  const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
@@ -394,6 +394,7 @@ document.addEventListener('click',e=>{const t=e.target;
  if(t.id==='sheet')return act('sc');
  const a=t.closest('[data-act]');if(a){act(a.dataset.act,a);return}
  if(t.closest('#wp')&&wpClick(t))return;
+ if(t.closest('[data-watch-movie]')){if(cur.source)return startFilm(cur.source,titleOf(cur.m));if(cur.film)return startFilm(cur.film,titleOf(cur.m));return filmBtns(cur.m)}
  if(t.closest('[data-startp]')){cur.source?startFilm(cur.source,titleOf(cur.m)):cur.film?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
  const sc=t.closest('[data-src]');if(sc){sc.dataset.src==='film'?(cur.source?startFilm(cur.source,titleOf(cur.m)):startFilm(cur.film,titleOf(cur.m))):startTrailer();return}
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
