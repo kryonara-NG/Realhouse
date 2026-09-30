@@ -1,4 +1,5 @@
 import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
+import { TMDB_READ_TOKEN } from './config.js';
 
 export function mountReelhouse(){
 
@@ -16,7 +17,7 @@ warn:sv('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/>')};
 const $=(s,e=document)=>e.querySelector(s),IMG='https://image.tmdb.org/t/p/';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let KEY=store.get('key',''),lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
+let KEY=TMDB_READ_TOKEN,lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
 let installPrompt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();
@@ -33,6 +34,7 @@ function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
  for(const k in q)u.searchParams.set(k,q[k]);
  return jget(u.href,h,!/^\/movie\/\d/.test(p))}
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
+const requireSession=()=>{if(session&&acct)return true;authSheet('in');toast('Log in to watch');return false};
 const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.name);
 const titleOf=m=>m.title||m.name||m.original_title||m.original_name||'Untitled';
 const dateOf=m=>m.release_date||m.first_air_date||'';
@@ -45,7 +47,7 @@ function toggle(k,m){const on=has(k,m.id);lists[k]=on?lists[k].filter(x=>x.id!==
 
 /* ---------- routing ---------- */
 const view=$('#view');
-function route(){if(!KEY){$('#setup').classList.add('on');return}
+function route(){
  $('#setup').classList.remove('on');
  const [r,sub]=(location.hash||'#/home').slice(2).split('/');
  document.querySelectorAll('#tab a').forEach(a=>a.classList.toggle('on',a.dataset.r===r));
@@ -231,7 +233,7 @@ function act(n,el){switch(n){
  case'theme':S.theme=el.dataset.v;store.set('theme',S.theme);applyTheme();return me('settings');
  case'rotate':S.rotate=el.checked;store.set('rotate',S.rotate);return;
  case'clear':lists.recent=[];S.prog={};store.set('recent',[]);store.set('prog',{});toast('History cleared');return me('settings');
- case'rekey':KEY='';store.set('key','');mem.clear();return route();
+
  case'rmdl':lists.dl=lists.dl.filter(x=>x.id!==el.dataset.id);store.set('dl',lists.dl);return me('downloads')}}
 function setAvatar(f){if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),z=Math.min(im.width,im.height);c.width=c.height=200;c.getContext('2d').drawImage(im,(im.width-z)/2,(im.height-z)/2,z,z,0,0,200,200);acct.avatar=c.toDataURL('image/jpeg',.85);store.set('acct',acct);toast('Photo updated');me()};im.src=r.result};r.readAsDataURL(f)}
 document.addEventListener('change',e=>{if(e.target.id==='av')setAvatar(e.target.files[0])});
@@ -256,14 +258,14 @@ function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState()
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
-async function startTrailer(){const k=cur.tr;if(!k)return toast('No trailer available for this movie');
+async function startTrailer(){if(!requireSession())return;const k=cur.tr;if(!k)return toast('No trailer available for this movie');
  killPlayer();pm=null;cur.rt=startTrailer;setSrc('tr');mount('<div id="yt"></div>');remember(cur.m);
  try{await loadYT()}catch{return showErr('YouTube could not load. Check your connection.',k)}
  if(!$('#yt'))return;
  const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
  const msg=location.protocol==='file:'?'YouTube blocks trailers when this page is opened as a file. Host it (GitHub Pages or Netlify) or run a local server.':'This trailer cannot be played here.';
  yp=new YT.Player('yt',{videoId:k,playerVars:v,events:{onReady:e=>{e.target.setVolume(80);e.target.playVideo()},onStateChange:e=>{setPP(e.data);spin(e.data===3)},onError:()=>showErr(msg,k)}})}
-async function startFilm(source,title){killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');mount('');
+async function startFilm(source,title){if(!requireSession())return;killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
  if(!$('#wp'))return;
@@ -322,6 +324,7 @@ async function loadSeason(seriesId,season){
  }catch{wrap.innerHTML='<p class="empty">Episodes could not load right now.</p>'}
 }
 async function playEpisode(seriesId,season,episode){
+ if(!requireSession())return;
  const title=titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0');
  const ep={id:seriesId,media_type:'tv',name:title};
  let source;try{source=await resolveEpisodeSource(ep,season,episode)}catch{source={status:'coming-soon'}}
@@ -416,8 +419,6 @@ document.addEventListener('keydown',e=>{if(e.target.matches('input'))return;
   if(e.key==='Escape'&&!document.fullscreenElement)closeDetail();return}
  if(e.key==='/'&&$('#sq')){e.preventDefault();$('#sq').focus()}});
 $('#dice').onclick=surprise;
-$('#ksave').onclick=async()=>{const k=$('#key').value.trim();if(!k)return;KEY=k;$('#err').textContent='';
- try{await api('/configuration');store.set('key',k);route()}catch{KEY='';$('#err').textContent='That key was rejected. Copy it again from your TMDB API settings.'}};
 route();
 
 }
