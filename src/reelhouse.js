@@ -126,7 +126,8 @@ function renderSuggestions(){
  box.classList.toggle('on',B.q.length>=2&&B.suggest.length>0);
 }
 function searchQuery(){
- const p={page:B.page,include_adult:false,sort_by:B.sort};
+ const sort=B.type==='tv'||B.type==='anime'?(B.sort==='primary_release_date.desc'?'first_air_date.desc':B.sort==='revenue.desc'?'popularity.desc':B.sort):B.sort;
+ const p={page:B.page,include_adult:false,sort_by:sort};
  if(B.g)p.with_genres=B.g;
  if(B.type==='anime')Object.assign(p,animeParams);
  if(B.sort!=='popularity.desc')p.vote_count_gte=300;
@@ -143,6 +144,13 @@ async function fill(reset){
    else d=await api('/search/multi',{query:B.q,page:B.page,include_adult:false});
    d.results=(d.results||[]).filter(m=>m.media_type!=='person'&&m.poster_path);
    if(B.type==='anime')d.results=d.results.filter(m=>isTV(m)&&(m.genre_ids||[]).includes(16)&&(m.origin_country||[]).includes('JP'));
+  }else if(B.type==='all'){
+   const [movies,tv]=await Promise.all([
+    api('/discover/movie',searchQuery()),
+    api('/discover/tv',searchQuery())
+   ]);
+   d={total_pages:Math.max(movies.total_pages||0,tv.total_pages||0),results:[...(movies.results||[]).map(m=>({...m,media_type:'movie'})),...(tv.results||[]).map(m=>({...m,media_type:'tv'}))]};
+   d.results.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
   }else{
    const endpoint=B.type==='movie'?'/discover/movie':'/discover/tv';
    d=await api(endpoint,searchQuery());
