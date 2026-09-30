@@ -518,31 +518,49 @@ function mountVidSrc(source,title){
  if(frame)frame.addEventListener('load',()=>spin(0),{once:true});
  remember(cur.m);
 }
+function mountNativeVideo(url,title,source={}){
+ const w=$('#wp');if(!w||!url)return;
+ const safeTitle=title||'Now playing';
+ w.innerHTML=`<div class="native-player"><video id="vd" playsinline controls preload="metadata" autoplay aria-label="${esc(safeTitle)}"></video><div class="native-player-title"><span class="player-live-dot"></span><span>${esc(safeTitle)}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div></div>`;
+ const v=$('#vd');if(!v)return;
+ v.src=url;yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source};v.volume=.8;
+ const t=Number(S.prog[pm.id]||0);
+ if(t)v.addEventListener('loadedmetadata',()=>{try{v.currentTime=t}catch{}},{once:true});
+ const save=()=>{if(pm?.id&&Number.isFinite(v.currentTime)){S.prog[pm.id]=v.currentTime;store.set('prog',S.prog)}};
+ v.addEventListener('timeupdate',save,{passive:true});
+ v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1)});
+ v.addEventListener('canplay',()=>spin(0));v.addEventListener('pause',()=>setPP(2));
+ v.addEventListener('ended',()=>{setPP(0);if(pm?.id){S.prog[pm.id]=0;store.set('prog',S.prog)}});
+ v.addEventListener('error',()=>showErr('Playback failed. The selected stream is unavailable or not supported by this browser.'));
+ remember(cur.m);
+}
+
 async function startFilm(source,title){
  if(!requireSession(()=>startFilm(source,title)))return;
  killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');
+
+ // Direct media is always rendered by the native Reelhouse player.
+ if(source?.type==='mp4'||source?.type==='hls'||source?.type==='direct'||source?.type==='video'){
+   mountNativeVideo(source.url,title,source);return;
+ }
+
  if(source?.type==='vidsrc'||source?.type==='iframe'){
    const raw=source.url;
    try{
-     const u=new URL(raw);
-     const subs=subtitleQuery();if(subs)u.searchParams.set('ds_lang',subs);
+     const u=new URL(raw);const subs=subtitleQuery();if(subs)u.searchParams.set('ds_lang',subs);
      mountVidSrc({...source,url:u.toString()},title);
    }catch{mountVidSrc(source,title)}
-   return
+   return;
  }
+
  mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
  if(!$('#wp'))return;
  if(!u)return showErr('This title is marked Coming to Reelhouse soon because no playable direct file is available.');
- $('#wp').insertAdjacentHTML('afterbegin',`<video id="vd" playsinline autoplay preload="metadata" src="${esc(u)}"></video>`);
- const v=$('#vd');yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source};v.volume=.8;const t=S.prog[pm.id];
- if(t)v.addEventListener('loadedmetadata',()=>{v.currentTime=t},{once:true});
- v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1)});v.addEventListener('canplay',()=>spin(0));
- v.addEventListener('pause',()=>setPP(2));v.addEventListener('ended',()=>setPP(0));
- v.addEventListener('error',()=>showErr('Playback failed. This file may not play in your browser.'));
- remember(cur.m)
+ mountNativeVideo(u,title,typeof source==='object'?source:{});
 }
+
 async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
  $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
