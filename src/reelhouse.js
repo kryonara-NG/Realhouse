@@ -91,10 +91,13 @@ async function filmSrc(id){const d=await jget('https://archive.org/metadata/'+id
  const f=(d.files||[]).filter(x=>/\.(mp4|m4v|webm|ogv)$/i.test(x.name)&&!/thumb|sample|trailer/i.test(x.name)).sort((a,b)=>rank(a)-rank(b)||(+a.size||0)-(+b.size||0));
  const best=f.filter(x=>rank(x)===0),pick=best.filter(x=>+x.size<3e8).pop()||best[0]||f[0];
  return pick&&`https://archive.org/download/${id}/`+pick.name.split('/').map(encodeURIComponent).join('/')}
-async function download(id,title){toast('Finding the file…');let u;try{u=await filmSrc(id)}catch{}
+async function download(id,title){
+ toast('Preparing download…');let u;try{u=await filmSrc(id)}catch{}
  if(!u)return toast('No downloadable file found');
  lists.dl=[{id,title,url:u,at:Date.now()},...lists.dl.filter(x=>x.id!==id)];store.set('dl',lists.dl);
- const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';a.click();toast('Opened. Use “Save video as” to keep it.')}
+ const a=document.createElement('a');a.href=u;a.download=(String(title||'Reelhouse-video').replace(/[^a-z0-9._-]+/gi,'_').slice(0,80)||'Reelhouse-video')+'.mp4';a.rel='noopener';a.target='_blank';document.body.appendChild(a);a.click();a.remove();
+ toast('Download started. If your browser opens the video instead, use its download control.');
+}
 
 /* ---------- search ---------- */
 const B={type:'all',g:'',sort:'popularity.desc',q:'',page:1,genres:null,tvGenres:null,filterOpen:false,suggest:[]};
