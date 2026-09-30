@@ -1,0 +1,11 @@
+{
+  "name":"Real House Video Player",
+  "short_name":"Real House",
+  "description":"A fast mobile video player and trailer discovery app.",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "orientation":"portrait",
+  "background_color":"#08090c",
+  "theme_color":"#08090c"
+}
