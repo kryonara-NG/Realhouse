@@ -13,18 +13,20 @@
     "cap:build:android": "npm run cap:sync && cap build android"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.0",
-    "@capacitor/core": "^7.4.0",
-    "@capacitor/splash-screen": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0",
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.9.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.0",
+    "@capacitor/cli": "^6.2.2",
     "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.0.5"
   },
-  "allowScripts": { "esbuild": true }
+  "allowScripts": {
+    "esbuild": true
+  }
 }
