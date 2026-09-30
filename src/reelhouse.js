@@ -34,7 +34,8 @@ function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
  for(const k in q)u.searchParams.set(k,q[k]);
  return jget(u.href,h,!/^\/movie\/\d/.test(p))}
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
-const requireSession=()=>{if(session&&acct)return true;authSheet('in');toast('Log in to watch');return false};
+let pendingWatch=null;
+const requireSession=resume=>{if(session&&acct)return true;pendingWatch=resume||null;authSheet('in');toast('Log in to watch');return false};
 const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.name);
 const titleOf=m=>m.title||m.name||m.original_title||m.original_name||'Untitled';
 const dateOf=m=>m.release_date||m.first_air_date||'';
@@ -224,7 +225,7 @@ async function authGo(m){const e=$('#ae').value.trim().toLowerCase(),p=$('#ap').
  const h=await sha(p);
  if(m==='up'){if(!n)return er.textContent='Enter your name.';if(acct&&acct.email!==e)return er.textContent='An account already exists on this device. Log in instead.';acct={name:n,email:e,hash:h,avatar:(acct&&acct.avatar)||''}}
  else if(!acct||acct.email!==e||acct.hash!==h)return er.textContent=acct?'Email or password is incorrect.':'No account on this device yet. Sign up first.';
- store.set('acct',acct);session=true;store.set('sess',true);act('sc');toast('Welcome, '+acct.name);me()}
+ store.set('acct',acct);session=true;store.set('sess',true);act('sc');toast('Welcome, '+acct.name);const resume=pendingWatch;pendingWatch=null;if(resume)return resume();me()}
 function act(n,el){switch(n){
  case'install':return (async()=>{if(!installPrompt)return toast('Use your browser menu to choose “Install app” or “Add to Home screen”.');installPrompt.prompt();try{await installPrompt.userChoice}catch{}installPrompt=null;return app()})();
  case'in':case'up':return authSheet(n);
@@ -261,14 +262,14 @@ function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState()
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
-async function startTrailer(){if(!requireSession())return;const k=cur.tr;if(!k)return toast('No trailer available for this movie');
+async function startTrailer(){if(!requireSession(()=>startTrailer()))return;const k=cur.tr;if(!k)return toast('No trailer available for this movie');
  killPlayer();pm=null;cur.rt=startTrailer;setSrc('tr');mount('<div id="yt"></div>');remember(cur.m);
  try{await loadYT()}catch{return showErr('YouTube could not load. Check your connection.',k)}
  if(!$('#yt'))return;
  const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
  const msg=location.protocol==='file:'?'YouTube blocks trailers when this page is opened as a file. Host it (GitHub Pages or Netlify) or run a local server.':'This trailer cannot be played here.';
  yp=new YT.Player('yt',{videoId:k,playerVars:v,events:{onReady:e=>{e.target.setVolume(80);e.target.playVideo()},onStateChange:e=>{setPP(e.data);spin(e.data===3)},onError:()=>showErr(msg,k)}})}
-async function startFilm(source,title){if(!requireSession())return;killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');mount('');
+async function startFilm(source,title){if(!requireSession(()=>startFilm(source,title)))return;killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
  if(!$('#wp'))return;
@@ -327,7 +328,7 @@ async function loadSeason(seriesId,season){
  }catch{wrap.innerHTML='<p class="empty">Episodes could not load right now.</p>'}
 }
 async function playEpisode(seriesId,season,episode){
- if(!requireSession())return;
+ if(!requireSession(()=>playEpisode(seriesId,season,episode)))return;
  const title=titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0');
  const ep={id:seriesId,media_type:'tv',name:title};
  let source;try{source=await resolveEpisodeSource(ep,season,episode)}catch{source={status:'coming-soon'}}
