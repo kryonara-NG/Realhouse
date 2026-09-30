@@ -453,7 +453,7 @@ function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState()
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
-async function startTrailer(){if(!cur.source)return filmBtns(cur.m,true);startFilm(cur.source,titleOf(cur.m))}
+async function startTrailer(){if(cur.source)startFilm(cur.source,titleOf(cur.m));else filmBtns(cur.m,true)}
 function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'');return h.includes('vidsrc')?('Source '+(i+1)):h}catch{return 'Source '+(i+1)}}
 function mountVidSrc(source,title){
  const w=$('#wp');if(!w)return;
@@ -576,11 +576,11 @@ async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeries
  const cast=m.credits.cast.slice(0,14).map(c=>`<div class="cm">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc(c.name[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character)}</small></div>`).join('');
  const dir=m.credits.crew.find(c=>c.job==='Director'),bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
  const isS=has('list',m.id),isF=has('fav',m.id),rel=m.similar.results.filter(x=>x.poster_path);
- box.innerHTML=`<div class="wpg"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})">${cur.tr?`<button class="big" data-startp aria-label="Play">${I.play}</button>`:''}</div>${topbar}</div>
+ box.innerHTML=`<div class="wpg"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})"><button class="big" data-startp aria-label="Play full movie">${I.play}</button></div>${topbar}</div>
  <div class="wi"><h1>${esc(m.title)}</h1>${m.tagline?`<div class="tg">${esc(m.tagline)}</div>`:''}
  <div class="wm"><span class="rt">${I.star}${m.vote_average.toFixed(1)}</span><span>${yr(m)}</span>${m.runtime?`<span>${Math.floor(m.runtime/60)}h ${m.runtime%60}m</span>`:''}${dir?`<span>${esc(dir.name)}</span>`:''}</div>
  <div class="gs">${m.genres.map(g=>`<span>${esc(g.name)}</span>`).join('')}</div>
- <div class="src" id="src">${cur.tr?'<button class="chip" data-src="tr">Trailer</button>':'<span class="mt nf">No trailer available</span>'}</div>
+ <div class="src" id="src"><span class="mt nf">Full playback loads from VidSrc</span></div>
  <div class="acts"><button class="act ${isS?'on':''}" data-tg="list">${isS?I.bmF:I.bm}<span>${isS?'Saved':'Save'}</span></button><button class="act ${isF?'on':''}" data-tg="fav">${isF?I.heartF:I.heart}<span>${isF?'Favorited':'Favorite'}</span></button><button class="act" id="dlb" data-dl="" hidden>${I.dl}<span>Download</span></button></div>
  <p class="ovw" id="ovw">${esc(m.overview)||'No overview available.'}</p>${(m.overview||'').length>140?'<button class="more2" data-more>More</button>':''}
  ${cast?`<h3>Cast</h3><div class="cast">${cast}</div>`:''}
