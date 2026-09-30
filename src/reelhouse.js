@@ -33,7 +33,7 @@ const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.nam
 const titleOf=m=>m.title||m.name||m.original_title||m.original_name||'Untitled';
 const dateOf=m=>m.release_date||m.first_air_date||'';
 const yr=m=>dateOf(m).slice(0,4)||'—';
-const card=m=>m.poster_path?`<a class="card" tabindex="0" role="button" data-id="\${m.id}" data-kind="\${isTV(m)?'tv':'movie'}"><i>\${I.star}\${(m.vote_average||0).toFixed(1)}</i><img loading="lazy" decoding="async" src="\${IMG}w342\${m.poster_path}" alt=""><div class="m"><b>\${esc(titleOf(m))}</b><span>\${yr(m)} · \${isTV(m)?'Series':'Movie'}</span></div></a>`:'';
+const card=m=>m.poster_path?`<a class="card" tabindex="0" role="button" data-id="${m.id}" data-kind="${isTV(m)?'tv':'movie'}"><i>${I.star}${(m.vote_average||0).toFixed(1)}</i><img loading="lazy" decoding="async" src="${IMG}w342${m.poster_path}" alt=""><div class="m"><b>${esc(titleOf(m))}</b><span>${yr(m)} · ${isTV(m)?'Series':'Movie'}</span></div></a>`:'';
 const slim=m=>({id:m.id,title:titleOf(m),name:m.name,poster_path:m.poster_path,vote_average:m.vote_average,release_date:m.release_date,first_air_date:m.first_air_date,media_type:isTV(m)?'tv':'movie'});
 const has=(k,id)=>lists[k].some(m=>m.id===id);
 function toggle(k,m){const on=has(k,m.id);lists[k]=on?lists[k].filter(x=>x.id!==m.id):[slim(m),...lists[k]];store.set(k,lists[k]);
@@ -94,12 +94,12 @@ async function download(id,title){toast('Finding the file…');let u;try{u=await
 const B={type:'all',g:'',sort:'popularity.desc',q:'',page:1,genres:null,tvGenres:null,filterOpen:false,suggest:[]};
 const SEARCH_TYPES=[['all','Everything'],['movie','Movies'],['tv','Series'],['anime','Anime']];
 const animeParams={with_genres:'16',with_origin_country:'JP'};
-const searchItem=(m)=>`<button class="suggest" data-id="\${m.id}" data-kind="\${isTV(m)?'tv':'movie'}"><img src="\${m.poster_path?IMG+'w92'+m.poster_path:''}" alt=""><span><b>\${esc(titleOf(m))}</b><small>\${esc(isTV(m)?'Series':'Movie')} · \${esc(yr(m))}</small></span><em>\${I.r}</em></button>`;
+const searchItem=(m)=>`<button class="suggest" data-id="${m.id}" data-kind="${isTV(m)?'tv':'movie'}"><img src="${m.poster_path?IMG+'w92'+m.poster_path:''}" alt=""><span><b>${esc(titleOf(m))}</b><small>${esc(isTV(m)?'Series':'Movie')} · ${esc(yr(m))}</small></span><em>${I.r}</em></button>`;
 function genreList(){return B.type==='tv'||B.type==='anime'?(B.tvGenres||[]):(B.genres||[])}
 function renderSearchFilters(){
  const ch=$('#searchGenres'),types=$('#searchTypes'),sort=$('#sort');
- if(types)types.innerHTML=SEARCH_TYPES.map(([v,l])=>`<button class="chip \${B.type===v?'on':''}" data-type="\${v}">\${l}</button>`).join('');
- if(ch)ch.innerHTML=[{id:'',name:'All genres'},...genreList()].map(g=>`<button class="chip \${String(g.id)===B.g?'on':''}" data-g="\${g.id}">\${esc(g.name)}</button>`).join('');
+ if(types)types.innerHTML=SEARCH_TYPES.map(([v,l])=>`<button class="chip ${B.type===v?'on':''}" data-type="${v}">${l}</button>`).join('');
+ if(ch)ch.innerHTML=[{id:'',name:'All genres'},...genreList()].map(g=>`<button class="chip ${String(g.id)===B.g?'on':''}" data-g="${g.id}">${esc(g.name)}</button>`).join('');
  if(sort)sort.value=B.sort;
 }
 async function loadSearchMeta(){
@@ -162,8 +162,8 @@ async function fill(reset){
 }
 async function browse(){
  view.innerHTML=`<div class="pg search-page"><h1>Search</h1>
- <div class="search-line"><button class="filter-toggle" id="filterToggle" aria-expanded="false">\${I.x}<span>Filters</span></button>
- <div class="search-wrap"><input id="sq" class="sbar" type="search" placeholder="Search movies, series or anime" value="\${esc(B.q)}" aria-label="Search movies, series or anime" autocomplete="off"><div id="suggestions" class="suggestions"></div></div></div>
+ <div class="search-line"><button class="filter-toggle" id="filterToggle" aria-expanded="false">${I.x}<span>Filters</span></button>
+ <div class="search-wrap"><input id="sq" class="sbar" type="search" placeholder="Search movies, series or anime" value="${esc(B.q)}" aria-label="Search movies, series or anime" autocomplete="off"><div id="suggestions" class="suggestions"></div></div></div>
  <div class="search-pop" id="searchPop"><div class="filter-head"><b>Browse</b><button class="chip" id="closeFilters">Done</button></div>
  <div class="filter-group"><small>Type</small><div class="chips" id="searchTypes"></div></div>
  <div class="filter-group"><small>Genre</small><div class="chips" id="searchGenres"></div></div>
@@ -275,28 +275,28 @@ async function openSeriesDetail(id,auto){
  cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openSeriesDetail(id,auto);
  let m;try{m=await api('/tv/'+id,{append_to_response:'credits,similar,videos'})}catch{}
  if(cur.tok!==tok)return;
- if(!m){box.innerHTML=`<div class="wpg"><div class="wp">\${topbar}</div><div class="wi"><p class="mt" style="margin-bottom:12px">Could not load this series. Check your connection.</p><button class="btn" data-retry>Retry</button></div></div>`;return}
+ if(!m){box.innerHTML=`<div class="wpg"><div class="wp">${topbar}</div><div class="wi"><p class="mt" style="margin-bottom:12px">Could not load this series. Check your connection.</p><button class="btn" data-retry>Retry</button></div></div>`;return}
  const vs=(m.videos?.results||[]).filter(x=>x.site==='YouTube'),tr=vs.find(x=>x.type==='Trailer'&&x.official)||vs.find(x=>x.type==='Trailer')||vs[0];
  cur.m=m;cur.tr=tr&&tr.key;cur.kind='tv';cur.seriesId=id;cur.season=m.seasons?.find(s=>s.season_number>0)?.season_number??0;
- const cast=(m.credits?.cast||[]).slice(0,14).map(c=>`<div class="cm">\${c.profile_path?`<img loading="lazy" src="\${IMG}w185\${c.profile_path}" alt="">`:`<div>\${esc((c.name||'?')[0])}</div>`}<b>\${esc(c.name)}</b><small>\${esc(c.character||'')}</small></div>`).join('');
+ const cast=(m.credits?.cast||[]).slice(0,14).map(c=>`<div class="cm">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc((c.name||'?')[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character||'')}</small></div>`).join('');
  const bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
  const isS=has('list',m.id),isF=has('fav',m.id);
- box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(\${bg})">\${cur.tr?`<button class="big" data-startp aria-label="Play trailer">\${I.play}</button>`:''}</div>\${topbar}</div>
- <div class="wi"><div class="series-kicker">SERIES</div><h1>\${esc(titleOf(m))}</h1>\${m.tagline?`<div class="tg">\${esc(m.tagline)}</div>`:''}
- <div class="wm"><span class="rt">\${I.star}\${(m.vote_average||0).toFixed(1)}</span><span>\${yr(m)}</span><span>\${m.number_of_seasons||0} seasons</span><span>\${m.number_of_episodes||0} episodes</span></div>
- <div class="gs">\${(m.genres||[]).map(g=>`<span>\${esc(g.name)}</span>`).join('')}</div>
- <div class="src" id="src">\${cur.tr?'<button class="chip" data-src="tr">Trailer</button>':'<span class="mt nf">No trailer available</span>'}</div>
- <div class="acts"><button class="act \${isS?'on':''}" data-tg="list">\${isS?I.bmF:I.bm}<span>\${isS?'Saved':'Save'}</span></button><button class="act \${isF?'on':''}" data-tg="fav">\${isF?I.heartF:I.heart}<span>\${isF?'Favorited':'Favorite'}</span></button></div>
- <p class="ovw" id="ovw">\${esc(m.overview)||'No overview available.'}</p>
- <div class="season-bar"><label for="seasonSelect">Season</label><select id="seasonSelect">\${(m.seasons||[]).filter(s=>s.season_number>=0).map(s=>`<option value="\${s.season_number}" \${s.season_number===cur.season?'selected':''}>Season \${s.season_number}\${s.episode_count?` · \${s.episode_count} episodes`:''}</option>`).join('')}</select></div>
+ box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})">${cur.tr?`<button class="big" data-startp aria-label="Play trailer">${I.play}</button>`:''}</div>${topbar}</div>
+ <div class="wi"><div class="series-kicker">SERIES</div><h1>${esc(titleOf(m))}</h1>${m.tagline?`<div class="tg">${esc(m.tagline)}</div>`:''}
+ <div class="wm"><span class="rt">${I.star}${(m.vote_average||0).toFixed(1)}</span><span>${yr(m)}</span><span>${m.number_of_seasons||0} seasons</span><span>${m.number_of_episodes||0} episodes</span></div>
+ <div class="gs">${(m.genres||[]).map(g=>`<span>${esc(g.name)}</span>`).join('')}</div>
+ <div class="src" id="src">${cur.tr?'<button class="chip" data-src="tr">Trailer</button>':'<span class="mt nf">No trailer available</span>'}</div>
+ <div class="acts"><button class="act ${isS?'on':''}" data-tg="list">${isS?I.bmF:I.bm}<span>${isS?'Saved':'Save'}</span></button><button class="act ${isF?'on':''}" data-tg="fav">${isF?I.heartF:I.heart}<span>${isF?'Favorited':'Favorite'}</span></button></div>
+ <p class="ovw" id="ovw">${esc(m.overview)||'No overview available.'}</p>
+ <div class="season-bar"><label for="seasonSelect">Season</label><select id="seasonSelect">${(m.seasons||[]).filter(s=>s.season_number>=0).map(s=>`<option value="${s.season_number}" ${s.season_number===cur.season?'selected':''}>Season ${s.season_number}${s.episode_count?` · ${s.episode_count} episodes`:''}</option>`).join('')}</select></div>
  <div id="episodes"><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
- \${cast?`<h3>Cast</h3><div class="cast">\${cast}</div>`:''}</div></div>`;
+ ${cast?`<h3>Cast</h3><div class="cast">${cast}</div>`:''}</div></div>`;
  $('#seasonSelect').onchange=e=>loadSeason(id,+e.target.value);loadSeason(id,cur.season);if(auto==='trailer')startTrailer();
 }
 async function loadSeason(seriesId,season){
  const wrap=$('#episodes');if(!wrap)return;cur.season=season;wrap.innerHTML='<div class="ln"></div><div class="ln"></div><div class="ln"></div>';
  try{const d=await api('/tv/'+seriesId+'/season/'+season);if(!$('#episodes'))return;const eps=d.episodes||[];
-  wrap.innerHTML=`<div class="episode-head"><h3>Episodes</h3><span>\${eps.length} episodes</span></div><div class="episodes">\${eps.map(e=>`<button class="episode" data-episode="\${e.episode_number}" data-series="\${seriesId}" data-season="\${season}"><span class="ep-img">\${e.still_path?`<img loading="lazy" src="\${IMG}w300\${e.still_path}" alt="">`:'<span></span>'}<b>\${e.episode_number}</b></span><span class="ep-copy"><strong>\${esc(e.name||'Episode '+e.episode_number)}</strong><small>\${e.runtime?e.runtime+' min · ':''}\${esc(e.air_date||'')}</small><em>\${esc(e.overview||'')}</em></span><i>\${I.play}</i></button>`).join('')}</div>`;
+  wrap.innerHTML=`<div class="episode-head"><h3>Episodes</h3><span>${eps.length} episodes</span></div><div class="episodes">${eps.map(e=>`<button class="episode" data-episode="${e.episode_number}" data-series="${seriesId}" data-season="${season}"><span class="ep-img">${e.still_path?`<img loading="lazy" src="${IMG}w300${e.still_path}" alt="">`:'<span></span>'}<b>${e.episode_number}</b></span><span class="ep-copy"><strong>${esc(e.name||'Episode '+e.episode_number)}</strong><small>${e.runtime?e.runtime+' min · ':''}${esc(e.air_date||'')}</small><em>${esc(e.overview||'')}</em></span><i>${I.play}</i></button>`).join('')}</div>`;
  }catch{wrap.innerHTML='<p class="empty">Episodes could not load right now.</p>'}
 }
 function playEpisode(seriesId,season,episode){if(cur.tr){toast('Episode selected. Connect your episode video source here next.');startTrailer();return}toast(titleOf(cur.m)+' · S'+String(season).padStart(2,'0')+'E'+String(episode).padStart(2,'0'))}
