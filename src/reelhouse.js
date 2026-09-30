@@ -536,7 +536,7 @@ async function openSeriesDetail(id,auto){
  const cast=(m.credits?.cast||[]).slice(0,14).map(c=>`<div class="cm">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc((c.name||'?')[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character||'')}</small></div>`).join('');
  const bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
  const isS=has('list',m.id),isF=has('fav',m.id);
- box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})">`<button class="big" data-startp aria-label="Play series">${I.play}</button>`</div>${topbar}</div>
+ box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})"><button class="big" data-startp aria-label="Play series">${I.play}</button></div>${topbar}</div>
  <div class="wi"><div class="series-kicker">SERIES</div><h1>${esc(titleOf(m))}</h1>${m.tagline?`<div class="tg">${esc(m.tagline)}</div>`:''}
  <div class="wm"><span class="rt">${I.star}${(m.vote_average||0).toFixed(1)}</span><span>${yr(m)}</span><span>${m.number_of_seasons||0} seasons</span><span>${m.number_of_episodes||0} episodes</span></div>
  <div class="gs">${(m.genres||[]).map(g=>`<span>${esc(g.name)}</span>`).join('')}</div>
