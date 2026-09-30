@@ -1,5 +1,7 @@
 import { resolveMovieSource, resolveEpisodeSource, VIDSRC_MIRRORS } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 export function mountReelhouse(){
 
@@ -334,8 +336,36 @@ function mylist(){const L=lists[tab];
 /* ---------- app install ---------- */
 const APK_URL=['https:','github.com','kryonara-NG','Realhouse','releases','latest','download','Reelhouse.apk'].join('/');
 const RELEASE_API='https://api.github.com/repos/kryonara-NG/Realhouse/releases/latest';
+const APK_URL='https://github.com/kryonara-NG/Realhouse/releases/latest/download/Reelhouse.apk';
+const haptic=async(style=ImpactStyle.Light)=>{try{await Haptics.impact({style})}catch{try{navigator.vibrate?.(12)}catch{}}};
+const REMINDER_CHANNEL='reelhouse-reminders';
+const REMINDER_COUNT=72;
+async function setupReminderNotifications(){
+ try{
+  const perm=await LocalNotifications.requestPermissions();
+  if(perm.display!=='granted')return false;
+  await LocalNotifications.createChannel({id:REMINDER_CHANNEL,name:'Reelhouse reminders',description:'Optional Reelhouse watch reminders',importance:3,sound:'default',vibration:true,lights:true});
+  const pending=await LocalNotifications.getPending();
+  const ids=pending.notifications.filter(n=>n.channelId===REMINDER_CHANNEL).map(n=>n.id);
+  if(ids.length)await LocalNotifications.cancel({notifications:ids.map(id=>({id}))});
+  const now=Date.now();
+  await LocalNotifications.schedule({notifications:Array.from({length:REMINDER_COUNT},(_,i)=>({id:9200+i,title:'Reelhouse',body:'Your next watch is waiting.',channelId:REMINDER_CHANNEL,smallIcon:'ic_stat_icon_config_sample',schedule:{at:new Date(now+(i+1)*20*60*1000),allowWhileIdle:true},extra:{url:'#/home'}}))});
+  store.set('rh:20minReminders',true);
+  return true;
+ }catch{return false}
+}
+async function disableReminderNotifications(){
+ try{
+  const pending=await LocalNotifications.getPending();
+  const ids=pending.notifications.filter(n=>n.channelId===REMINDER_CHANNEL).map(n=>n.id);
+  if(ids.length)await LocalNotifications.cancel({notifications:ids.map(id=>({id}))});
+ }catch{}
+ store.set('rh:20minReminders',false);
+}
+
 async function downloadApp(){
- toast('Checking for the latest Reelhouse APK…');
+ await haptic(ImpactStyle.Medium);
+ toast('Opening the latest Reelhouse APK…');
  try{
   const r=await fetch(RELEASE_API,{headers:{Accept:'application/vnd.github+json'}});
   if(!r.ok)throw new Error('release '+r.status);
@@ -343,7 +373,9 @@ async function downloadApp(){
   const asset=(d.assets||[]).find(x=>x.name==='Reelhouse.apk');
   if(!asset?.browser_download_url)throw new Error('APK asset missing');
   window.location.assign(asset.browser_download_url);
- }catch{toast('Latest APK could not be resolved. Opening the official download address…');setTimeout(()=>window.location.assign(APK_URL),450)}
+ }catch{
+  window.location.assign(APK_URL);
+ }
 }
 function notificationState(){return store.get('rh:notifications',{enabled:false,seen:[]})}
 async function showReelhouseNotification(title,body,url='#/home'){
@@ -362,11 +394,13 @@ async function checkMovieNotifications(seed=false){
  }catch{}
 }
 async function enableMovieNotifications(){
+ await setupReminderNotifications();
+
  if(!('Notification' in window))return toast('This browser does not support notifications.');
  const p=await Notification.requestPermission();if(p!=='granted')return toast('Notification permission was not granted.');
  const ns=notificationState();ns.enabled=true;store.set('rh:notifications',ns);await checkMovieNotifications(true);toast('Movie notifications enabled');app();
 }
-function disableMovieNotifications(){const ns=notificationState();ns.enabled=false;store.set('rh:notifications',ns);toast('Movie notifications turned off');app()}
+function disableMovieNotifications(){disableReminderNotifications();const ns=notificationState();ns.enabled=false;store.set('rh:notifications',ns);toast('Movie notifications turned off');app()}
 function app(){
  const ns=store.get('rh:notifications',{enabled:false,seen:[]});
  const supported='Notification' in window;
@@ -413,7 +447,7 @@ async function authGo(m){const e=$('#ae').value.trim().toLowerCase(),p=$('#ap').
  if(m==='up'){if(!n)return er.textContent='Enter your name.';if(acct&&acct.email!==e)return er.textContent='An account already exists on this device. Log in instead.';acct={name:n,email:e,hash:h,avatar:(acct&&acct.avatar)||''}}
  else if(!acct||acct.email!==e||acct.hash!==h)return er.textContent=acct?'Email or password is incorrect.':'No account on this device yet. Sign up first.';
  store.set('acct',acct);session=true;store.set('sess',true);act('sc');toast('Welcome, '+acct.name);const resume=pendingWatch;pendingWatch=null;if(resume)return resume();me()}
-function act(n,el){switch(n){
+function act(n,el){haptic().catch(()=>{});switch(n){
  case'install':return (async()=>{if(!installPrompt)return toast('Use your browser menu to choose “Install app” or “Add to Home screen”.');installPrompt.prompt();try{await installPrompt.userChoice}catch{}installPrompt=null;return app()})();
  case'downloadapp':return downloadApp();
  case'notifson':return enableMovieNotifications();
