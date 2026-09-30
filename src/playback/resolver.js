@@ -87,14 +87,16 @@ async function archiveResolve(m){
   };
 }
 
-const VIDSRC_BASE=(globalThis.REELHOUSE_VIDSRC_BASE||'https://vidsrc-ip.com').replace(/\/$/,'');
-function vidsrcMovieSource(m){
+const VIDSRC_BASE=(globalThis.REELHOUSE_VIDSRC_BASE||'https://vidsrc.sh').replace(/\/$/,'');
+function vidsrcMovieSource(m,startAt=0){
   if(!m?.id)return null;
+  const q=new URLSearchParams({autoplay:'1'});
+  if(Number(startAt)>0)q.set('startAt',String(Math.max(0,Number(startAt))));
   return {
     status:'ready',
     type:'vidsrc',
     source:'vidsrc',
-    url:`${VIDSRC_BASE}/embed/movie/${encodeURIComponent(m.id)}?autoplay=1`,
+    url:`${VIDSRC_BASE}/embed/movie/${encodeURIComponent(m.id)}?${q}`,
     tmdb_id:m.id,
     title:m.title||m.name||'Movie'
   };
@@ -110,7 +112,7 @@ export async function resolveMovieSource(m){
     writeCache(key,result);
     return result;
   }
-  const result=vidsrcMovieSource(m)||{
+  const result=vidsrcMovieSource(m,Number(globalThis.REELHOUSE_PROGRESS?.[m?.id]||0))||{
     status:'coming-soon',
     source:null,
     reason:'Missing TMDB movie id.'
@@ -119,7 +121,7 @@ export async function resolveMovieSource(m){
   return result;
 }
 
-export async function resolveEpisodeSource(series,season,episode){
+export async function resolveEpisodeSource(series,season,episode,startAt=0){
   const key=`tv:${series?.id}:${season}:${episode}`;
   const cached=readCache(key);
   if(cached&&cached.source==='vidsrc')return cached;
@@ -131,11 +133,13 @@ export async function resolveEpisodeSource(series,season,episode){
   }
   const id=series?.id;
   if(!id)return {status:'coming-soon',source:null,reason:'Missing TMDB series id.'};
+  const q=new URLSearchParams({autoplay:'1',autonext:'1'});
+  if(Number(startAt)>0)q.set('startAt',String(Math.max(0,Number(startAt))));
   const result={
     status:'ready',
     type:'vidsrc',
     source:'vidsrc',
-    url:`${VIDSRC_BASE}/embed/tv/${encodeURIComponent(id)}/${encodeURIComponent(season)}/${encodeURIComponent(episode)}?autoplay=1&autonext=1`,
+    url:`${VIDSRC_BASE}/embed/tv/${encodeURIComponent(id)}/${encodeURIComponent(season)}/${encodeURIComponent(episode)}?${q}`,
     tmdb_id:id,
     season:Number(season),
     episode:Number(episode),
@@ -143,6 +147,19 @@ export async function resolveEpisodeSource(series,season,episode){
   };
   writeCache(key,result);
   return result;
+}
+
+export async function checkVidSrcAvailability(kind,id,season,episode){
+  if(!id)return {available:false,status:400};
+  const path=kind==='tv'
+    ? (season!=null&&episode!=null?'/info/tv/'+encodeURIComponent(id)+'/'+encodeURIComponent(season)+'/'+encodeURIComponent(episode)+'.json':'/info/tv/'+encodeURIComponent(id)+'.json')
+    : '/info/movie/'+encodeURIComponent(id)+'.json';
+  try{
+    const r=await fetch(VIDSRC_BASE+path,{headers:{Accept:'application/json'}});
+    if(r.status===404)return {available:false,status:404};
+    if(!r.ok)return {available:null,status:r.status};
+    return {available:true,status:r.status,data:await r.json()};
+  }catch{return {available:null,status:0}}
 }
 
 export function clearResolverCache(){
