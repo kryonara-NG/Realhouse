@@ -32,20 +32,7 @@ jobs:
           npm run build
 
       - name: Add Android platform
-        id: cap-add
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          npx cap add android --verbose 2>&1 | tee cap-add.log
-      - name: Upload Capacitor diagnostic
-        if: steps.cap-add.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: capacitor-add-android-diagnostic
-          path: cap-add.log
-      - name: Stop after Capacitor diagnostic failure
-        if: steps.cap-add.outcome == 'failure'
-        run: exit 1
+        run: npx cap add android
       - name: Sync Capacitor
         run: npx cap sync android
 
