@@ -18,6 +18,10 @@ function ReelhouseShell() {
         <button className="btn" id="dice" title="Open a random top-rated movie">
           <span>🎲</span> Surprise me
         </button>
+        <button className="icon-btn notification-trigger" id="notifBell" aria-label="Open notifications" title="Notifications">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <span className="notification-badge" id="notifBadge" hidden>0</span>
+        </button>
       </header>
       <nav id="tab" aria-label="Main">
         <a href="#/home" data-r="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg><span>Home</span></a>
@@ -28,6 +32,23 @@ function ReelhouseShell() {
       <main id="view" />
       <div className="ov" id="modal" />
       <div className="ov" id="sheet" />
+      <div className="ov" id="notifications" aria-hidden="true" />
+      <div className="welcome-modal" id="welcomeModal" aria-hidden="true">
+        <div className="welcome-backdrop" data-welcome-close />
+        <section className="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+          <button className="welcome-close" data-welcome-close aria-label="Close welcome message">×</button>
+          <div className="welcome-art">
+            <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=82" alt="" />
+            <div className="welcome-art-copy"><span>REELHOUSE</span><b>Lights down.<br/>Movie on.</b></div>
+          </div>
+          <div className="welcome-copy">
+            <p className="welcome-kicker">WELCOME IN</p>
+            <h2 id="welcomeTitle">Your next watch is already waiting.</h2>
+            <p>Find something good, save the stuff you want to come back to, and pick up right where you left off. No tour. Just come in.</p>
+            <button className="btn pri welcome-enter" data-welcome-enter>Enter Reelhouse</button>
+          </div>
+        </section>
+      </div>
       <div id="bar" />
       <div id="toast" />
     </>
