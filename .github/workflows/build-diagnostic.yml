@@ -1,0 +1,40 @@
+name: Build diagnostic
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Capture Vite build error
+        shell: bash
+        run: |
+          npm install
+          set +e
+          npm run build > build-error.log 2>&1
+          code=$?
+          echo "EXIT_CODE=$code" >> build-error.log
+          exit 0
+      - name: Publish diagnostic branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git checkout --orphan build-diagnostic
+          git rm -rf . >/dev/null 2>&1 || true
+          cp build-error.log ./build-error.log
+          git add build-error.log
+          git commit -m "diagnostic: capture Vite build output" || true
+          git push --force origin HEAD:build-diagnostic
