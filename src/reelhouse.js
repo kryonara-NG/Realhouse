@@ -119,6 +119,7 @@ async function loadCatalogPage(s,page=1,append=false){
  state.loading=true;catalogState.set(s.id,state);
  try{
    const d=await api(s.path,catalogParams(s,page));
+   if(!append)box.innerHTML='';
    const results=(d.results||[]).filter(m=>m.poster_path).map(m=>s.kind==='movie'?{...m,media_type:'movie'}:s.kind==='tv'?{...m,media_type:'tv'}:m);
    const fresh=results.filter(m=>{const k=m.media_type+':'+m.id;if(state.seen.has(k))return false;state.seen.add(k);return true});
    box.insertAdjacentHTML(append?'beforeend':'afterbegin',fresh.map(card).join(''));
@@ -165,7 +166,7 @@ async function home(){
  const initial=CATALOG_SECTIONS.slice(0,HOME_BATCH);
  view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Newly added","vidsrcLatest")} ${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}</div>`;
  loadIA();loadVidSrcLatest();
- initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});loadCatalogPage(s,1,false);});
+ initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false);});
  setupHomeInfinite();
  try{
    const d=await api('/trending/movie/week');
@@ -195,16 +196,23 @@ async function loadVidSrcLatest(){
  const box=$('#vidsrcLatest');if(!box)return;
  try{
   const [m,t]=await Promise.all([
-   jget('https://vidsrc.sh/movies/latest/page-1.json',undefined,true),
-   jget('https://vidsrc.sh/tvshows/latest/page-1.json',undefined,true)
+   jget(VIDSRC_MIRRORS[0]+'/movies/latest/page-1.json',undefined,true),
+   jget(VIDSRC_MIRRORS[0]+'/tvshows/latest/page-1.json',undefined,true)
   ]);
   const ids=[...(m?.result||[]).slice(0,10).map(x=>({...x,_kind:'movie'})),...(t?.result||[]).slice(0,10).map(x=>({...x,_kind:'tv'}))];
   const unique=[...new Map(ids.map(x=>[String(x.tmdb_id||x.imdb_id)+'-'+x._kind,x])).values()].slice(0,14);
   const hydrated=(await Promise.all(unique.map(async x=>{
     try{
-      if(!x.tmdb_id)return null;
-      const d=await api('/'+x._kind+'/'+encodeURIComponent(x.tmdb_id));
-      return {...d,media_type:x._kind};
+      if(x.tmdb_id){
+        const d=await api('/'+x._kind+'/'+encodeURIComponent(x.tmdb_id));
+        return {...d,media_type:x._kind};
+      }
+      if(x.imdb_id){
+        const d=await api('/find/'+encodeURIComponent(x.imdb_id),{external_source:'imdb_id'});
+        const hit=(x._kind==='movie'?d.movie_results:d.tv_results||[])[0];
+        return hit?{...hit,media_type:x._kind}:null;
+      }
+      return null;
     }catch{return null}
   }))).filter(Boolean);
   box.innerHTML=hydrated.map(card).join('')||'<p class="empty">Fresh additions could not load right now.</p>';
