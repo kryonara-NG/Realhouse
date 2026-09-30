@@ -149,19 +149,6 @@ export async function resolveEpisodeSource(series,season,episode,startAt=0){
   return result;
 }
 
-export async function checkVidSrcAvailability(kind,id,season,episode){
-  if(!id)return {available:false,status:400};
-  const path=kind==='tv'
-    ? (season!=null&&episode!=null?'/info/tv/'+encodeURIComponent(id)+'/'+encodeURIComponent(season)+'/'+encodeURIComponent(episode)+'.json':'/info/tv/'+encodeURIComponent(id)+'.json')
-    : '/info/movie/'+encodeURIComponent(id)+'.json';
-  try{
-    const r=await fetch(VIDSRC_BASE+path,{headers:{Accept:'application/json'}});
-    if(r.status===404)return {available:false,status:404};
-    if(!r.ok)return {available:null,status:r.status};
-    return {available:true,status:r.status,data:await r.json()};
-  }catch{return {available:null,status:0}}
-}
-
 export function clearResolverCache(){
   try{Object.keys(localStorage).filter(k=>k.startsWith(CACHE_PREFIX)).forEach(k=>localStorage.removeItem(k))}catch{}
 }
