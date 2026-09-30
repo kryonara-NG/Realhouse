@@ -191,8 +191,9 @@ function mylist(){const L=lists[tab];
  view.innerHTML=`<div class="pg"><h1>Library</h1><div class="chips"><button class="chip ${tab==='list'?'on':''}" data-tab="list">Saved (${lists.list.length})</button><button class="chip ${tab==='fav'?'on':''}" data-tab="fav">Favorites (${lists.fav.length})</button></div><div class="grid">${L.map(card).join('')}</div>${L.length?'':`<p class="empty">Nothing here yet. Open any movie and tap ${tab==='list'?'“Save to list”':'“Favorite”'} to keep it.</p>`}</div>`}
 
 /* ---------- app install ---------- */
+const APK_URL=['https:','github.com','kryonara-NG','Realhouse','releases','latest','download','Reelhouse.apk'].join('/');
 function app(){
- view.innerHTML=`<div class="pg"><div class="hi"><h1>Download Reelhouse</h1><p>Install Reelhouse on your phone or computer for a faster, app-like experience. Your saved lists and settings stay on this device.</p><button class="btn" data-act="install">${installPrompt?'Install Reelhouse':'Add to home screen'}</button></div><div class="li"><div><b>Already installed?</b><small class="mt" style="display:block">Open Reelhouse from your home screen or app launcher.</small></div></div><p class="mt" style="margin-top:16px">If your browser does not show an install prompt yet, use its browser menu and choose “Install app” or “Add to Home screen”.</p></div>`;
+ view.innerHTML=`<div class="pg"><div class="hi"><h1>Download Reelhouse</h1><p>Get the Android app for the full Reelhouse experience. The button always points to the latest APK release.</p><a class="btn pri" href="${APK_URL}" download>Download Android APK</a><button class="btn" data-act="install">${installPrompt?'Install Reelhouse':'Add to home screen'}</button></div><div class="li"><div><b>Android app updates</b><small class="mt" style="display:block">New releases replace the APK at the same download address.</small></div></div><p class="mt" style="margin-top:16px">If you only want the web app, use “Add to home screen” instead.</p></div>`;
 }
 /* ---------- me, accounts, settings ---------- */
 const ic=p=>`<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
