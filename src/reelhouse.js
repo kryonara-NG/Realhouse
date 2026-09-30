@@ -17,6 +17,8 @@ const $=(s,e=document)=>e.querySelector(s),IMG='https://image.tmdb.org/t/p/';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let KEY=store.get('key',''),lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
+let installPrompt=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();
 const mem=new Map();let pend=0,bt;
 const bar=d=>{pend+=d;const b=$('#bar');if(!b)return;clearTimeout(bt);if(pend>0){b.classList.add('on');b.style.width='70%'}else{b.style.width='100%';bt=setTimeout(()=>{b.classList.remove('on');b.style.width='0'},250)}};
@@ -48,7 +50,7 @@ function route(){if(!KEY){$('#setup').classList.add('on');return}
  const [r,sub]=(location.hash||'#/home').slice(2).split('/');
  document.querySelectorAll('#tab a').forEach(a=>a.classList.toggle('on',a.dataset.r===r));
  clearInterval(cur.hero);scrollTo(0,0);
- ({home,search:browse,list:mylist,me}[r]||home)(sub)}
+ ({home,search:browse,list:mylist,me,app}[r]||home)(sub)}
 addEventListener('hashchange',route);
 addEventListener('scroll',()=>$('#nav').classList.toggle('solid',scrollY>60),{passive:true});
 
@@ -188,6 +190,10 @@ let tab='list';
 function mylist(){const L=lists[tab];
  view.innerHTML=`<div class="pg"><h1>Library</h1><div class="chips"><button class="chip ${tab==='list'?'on':''}" data-tab="list">Saved (${lists.list.length})</button><button class="chip ${tab==='fav'?'on':''}" data-tab="fav">Favorites (${lists.fav.length})</button></div><div class="grid">${L.map(card).join('')}</div>${L.length?'':`<p class="empty">Nothing here yet. Open any movie and tap ${tab==='list'?'“Save to list”':'“Favorite”'} to keep it.</p>`}</div>`}
 
+/* ---------- app install ---------- */
+function app(){
+ view.innerHTML=`<div class="pg"><div class="hi"><h1>Download Reelhouse</h1><p>Install Reelhouse on your phone or computer for a faster, app-like experience. Your saved lists and settings stay on this device.</p><button class="btn" data-act="install">${installPrompt?'Install Reelhouse':'Add to home screen'}</button></div><div class="li"><div><b>Already installed?</b><small class="mt" style="display:block">Open Reelhouse from your home screen or app launcher.</small></div></div><p class="mt" style="margin-top:16px">If your browser does not show an install prompt yet, use its browser menu and choose “Install app” or “Add to Home screen”.</p></div>`;
+}
 /* ---------- me, accounts, settings ---------- */
 const ic=p=>`<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
 const ICO={recent:ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),dl:ic('<path d="M12 4v11m-5-5l5 5 5-5M5 20h14"/>'),set:ic('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>')};
@@ -214,6 +220,7 @@ async function authGo(m){const e=$('#ae').value.trim().toLowerCase(),p=$('#ap').
  else if(!acct||acct.email!==e||acct.hash!==h)return er.textContent=acct?'Email or password is incorrect.':'No account on this device yet. Sign up first.';
  store.set('acct',acct);session=true;store.set('sess',true);act('sc');toast('Welcome, '+acct.name);me()}
 function act(n,el){switch(n){
+ case'install':return (async()=>{if(!installPrompt)return toast('Use your browser menu to choose “Install app” or “Add to Home screen”.');installPrompt.prompt();try{await installPrompt.userChoice}catch{}installPrompt=null;return app()})();
  case'in':case'up':return authSheet(n);
  case'sc':return $('#sheet').classList.remove('on');
  case'go':return authGo(el.dataset.mode);
