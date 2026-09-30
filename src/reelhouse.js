@@ -250,7 +250,7 @@ const fmt=s=>{s=Math.floor(s||0);return Math.floor(s/60)+':'+String(s%60).padSta
 function remember(m){const x=m.ia?m:slim(m);lists.recent=[{...x,at:Date.now()},...lists.recent.filter(r=>r.id!==x.id)].slice(0,40);store.set('recent',lists.recent)}
 function saveProg(){if(pm&&yp){try{const t=yp.getCurrentTime(),d=yp.getDuration();S.prog[pm.id]=d&&t/d>.95?0:t;store.set('prog',S.prog)}catch{}}pm=null}
 const vAdapter=v=>({getPlayerState:()=>v.ended?0:v.paused?2:1,pauseVideo:()=>v.pause(),playVideo:()=>{v.play().catch(()=>{})},seekTo:t=>{const e=v.ended;v.currentTime=t;if(e)v.play().catch(()=>{})},getCurrentTime:()=>v.currentTime,getDuration:()=>v.duration||0,isMuted:()=>v.muted,mute:()=>{v.muted=true},unMute:()=>{v.muted=false},setVolume:x=>{v.volume=x/100},getPlaybackRate:()=>v.playbackRate,setPlaybackRate:r=>{v.playbackRate=r},destroy:()=>{v.pause();v.removeAttribute('src');v.load()}});
-function killPlayer(){saveProg();clearInterval(tick);try{yp&&yp.destroy()}catch{}yp=null}
+function killPlayer(){saveProg();clearInterval(tick);try{yp&&yp.destroy()}catch{}yp=null;try{cur.vidsrcCleanup&&cur.vidsrcCleanup()}catch{}cur.vidsrcCleanup=null}
 function closeDetail(){killPlayer();cur.tok=(cur.tok||0)+1;const b=$('#modal');b.classList.remove('on');b.innerHTML='';document.body.style.overflow=''}
 const setPP=s=>{const b=$('#pp');if(b)b.innerHTML=s===1?I.pause:s===0?I.replay:I.play};
 const spin=on=>{const e=$('#spin');if(e)e.classList.toggle('on',!!on)};
