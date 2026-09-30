@@ -1,53 +1,52 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { Search, Play, Plus, Link2, Upload, Clapperboard, Film, Clock3, Sparkles, ExternalLink, MonitorPlay, UserRound, Download, Smartphone, CheckCircle2, LoaderCircle } from "lucide-react";
+import { HashRouter } from "react-router-dom";
+import { mountReelhouse } from "./reelhouse";
 import "./style.css";
 
-const samples=[
- {title:"Big Buck Bunny",subtitle:"Open movie · Blender Foundation",url:"https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",kind:"video",duration:"10:34"},
- {title:"Elephants Dream",subtitle:"Open movie · Blender Foundation",url:"https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",kind:"video",duration:"10:53"},
- {title:"Sintel",subtitle:"Open movie · Blender Foundation",url:"https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",kind:"video",duration:"14:48"}
-];
-function youtubeId(input){try{const u=new URL(input);if(u.hostname.includes("youtu.be"))return u.pathname.slice(1);if(u.hostname.includes("youtube.com"))return u.searchParams.get("v")||u.pathname.split("/").filter(Boolean).pop()}catch{}return null}
+function ReelhouseShell() {
+  useEffect(() => {
+    mountReelhouse();
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
 
-function App(){
- const [query,setQuery]=useState(""),[results,setResults]=useState([]),[loading,setLoading]=useState(false),[notice,setNotice]=useState(""),[current,setCurrent]=useState(samples[0]),[urlInput,setUrlInput]=useState(""),[tab,setTab]=useState("discover"),[history,setHistory]=useState([]),[installPrompt,setInstallPrompt]=useState(null),[installMessage,setInstallMessage]=useState("");
- const fileRef=useRef(null);
- useEffect(()=>{try{setHistory(JSON.parse(localStorage.getItem("real-house-history")||"[]"))}catch{} const onInstall=e=>{e.preventDefault();setInstallPrompt(e)};window.addEventListener("beforeinstallprompt",onInstall);if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});return()=>window.removeEventListener("beforeinstallprompt",onInstall)},[]);
- async function installApp(){if(installPrompt){installPrompt.prompt();const c=await installPrompt.userChoice;setInstallMessage(c?.outcome==="accepted"?"Real House was added to your home screen.":"Installation cancelled.");setInstallPrompt(null);return}setInstallMessage("On Android, open your browser menu and choose Add to Home screen or Install app. Real House is designed as a mobile app and works from Android 5+ browsers that support web apps.")}
- function play(item){setCurrent(item);setNotice("");setHistory(prev=>{const next=[item,...prev.filter(x=>x.url!==item.url)].slice(0,12);try{localStorage.setItem("real-house-history",JSON.stringify(next))}catch{}return next})}
- async function search(e){e?.preventDefault();const q=query.trim();if(!q)return;setLoading(true);setNotice("");setResults([]);try{const base=(import.meta.env.VITE_SEARCH_API_URL||"").replace(/\/$/,"");const res=await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);if(!res.ok)throw new Error();const data=await res.json();setResults(data.results||[]);if(!data.results?.length)setNotice(data.message||"No results found. Try another title or paste a direct video URL.")}catch{setNotice("Online search needs the Python API running with a YouTube Data API key. You can still play a direct video URL, choose a local file, or try the sample videos below.")}finally{setLoading(false)}}
- function openUrl(e){e?.preventDefault();const v=urlInput.trim();if(!v)return;const id=youtubeId(v);if(id)play({title:"YouTube video",subtitle:"YouTube · Embedded playback",url:v,youtubeId:id,kind:"youtube"});else if(/^https?:\/\//i.test(v))play({title:v.split("/").pop()?.split("?")[0]||"Online video",subtitle:"Direct video URL",url:v,kind:"video"});else setNotice("Enter a valid http(s) video URL or a YouTube link.");setUrlInput("")}
- function openFile(e){const f=e.target.files?.[0];if(!f)return;if(!f.type.startsWith("video/")){setNotice("Please choose a video file.");return}play({title:f.name,subtitle:"Local file · On this device",url:URL.createObjectURL(f),kind:"video"})}
- const yt=current?.kind==="youtube"||!!current?.youtubeId;
- return <div className="app-shell">
-  <aside className="sidebar"><div className="brand"><div className="brand-mark"><Clapperboard size={21}/></div><span>real<span className="brand-accent">house</span></span><span className="brand-beta">BETA</span></div><div className="side-label">WORKSPACE</div>
-   <button className={`nav-item ${tab==="discover"?"active":""}`} onClick={()=>setTab("discover")}><Sparkles size={17}/> Discover</button>
-   <button className={`nav-item ${tab==="library"?"active":""}`} onClick={()=>setTab("library")}><Film size={17}/> Recently played</button>
-   <button className={`nav-item ${tab==="me"?"active":""}`} onClick={()=>setTab("me")}><UserRound size={17}/> Me</button>
-   <div className="side-divider"/><div className="side-label">YOUR PLAYER</div>
-   <button className="nav-item" onClick={()=>fileRef.current?.click()}><Upload size={17}/> Open local file</button>
-   <button className="nav-item" onClick={()=>document.getElementById("url-entry")?.focus()}><Link2 size={17}/> Play from URL</button>
-   <div className="sidebar-bottom"><div className="status-line"><span className="status-dot"/> Player ready</div><div className="sidebar-foot">A focused home for video.</div></div>
-  </aside>
-  <main className="main"><header className="topbar"><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{tab==="discover"?"Discover":tab==="library"?"Recently played":"Me"}</strong></div><span className="secure-label"><span className="status-dot"/> Ready to play</span></header>
-   <div className="content">
-    {tab==="discover"?<>
-     <section className="welcome"><div><div className="eyebrow"><span className="eyebrow-line"/> YOUR PERSONAL VIDEO SPACE</div><h1>Find something.<br/><span>Press play.</span></h1><p>Discover trailers, play videos from the web, or open files from your device — all in one clean workspace.</p></div><div className="welcome-art"><div className="art-core"><Play size={30} fill="currentColor"/></div></div></section>
-     <section className="search-panel"><div className="section-heading"><div><span className="section-kicker">DISCOVERY</span><h2>What are we watching?</h2></div><span className="powered-note"><Sparkles size={13}/> Trailer search</span></div>
-      <form className="search-bar" onSubmit={search}><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search movie trailers, documentaries, videos…" aria-label="Search videos"/><button className="search-button" disabled={loading}>{loading?<LoaderCircle className="spin" size={17}/>:<Search size={16}/>}<span>Search</span></button></form>
-      <form className="url-bar" onSubmit={openUrl}><Link2 size={16}/><input id="url-entry" value={urlInput} onChange={e=>setUrlInput(e.target.value)} placeholder="Or paste a direct video URL / YouTube link"/><button>Play URL <Play size={13} fill="currentColor"/></button></form>
-      {notice&&<div className="notice">{notice}</div>}
-      {results.length>0&&<div className="results-grid">{results.map((item,i)=><button className="result-card" key={item.url||i} onClick={()=>play(item)}><div className="result-thumb">{item.thumbnail?<img src={item.thumbnail} alt=""/>:<Play size={24}/>}<span className="play-overlay"><Play size={19} fill="currentColor"/></span></div><div className="result-info"><strong>{item.title}</strong><span>{item.subtitle||"Online video"}</span></div></button>)}</div>}
-     </section>
-     <section className="samples-section"><div className="section-heading"><div><span className="section-kicker">READY TO PLAY</span><h2>Start with a sample</h2></div></div><div className="sample-grid">{samples.map((item,i)=><button key={item.title} className="sample-card" onClick={()=>play(item)}><div className={`sample-visual sample-${i}`}><span>{i===0?<Film size={35}/>:i===1?<MonitorPlay size={35}/>:<Clapperboard size={35}/>}</span><b>{item.duration}</b></div><div className="sample-meta"><strong>{item.title}</strong><span>{item.subtitle}</span></div></button>)}</div></section>
-    </>:tab==="library"?<section className="library-view"><div className="eyebrow"><span className="eyebrow-line"/> YOUR LIBRARY</div><h1>Recently played</h1><p className="library-intro">Pick up where you left off. Your recent items stay on this device.</p>{history.length?<div className="history-list">{history.map((item,i)=><button key={item.url+i} className="history-item" onClick={()=>play(item)}><div className="history-icon"><Play size={16}/></div><div className="history-copy"><strong>{item.title}</strong><span>{item.subtitle}</span></div><span>Play</span></button>)}</div>:<div className="empty-state"><Clock3 size={27}/><strong>No videos yet</strong><span>Play a sample, paste a URL, or open a local file to start your history.</span></div>}</section>:<section className="me-view"><div className="eyebrow"><span className="eyebrow-line"/> YOUR SPACE</div><h1>Me</h1><p className="library-intro">Install Real House like an app for a faster, focused mobile experience.</p><div className="install-card"><div className="install-icon"><Smartphone size={24}/></div><div className="install-copy"><strong>Real House for Android</strong><span>Mobile-first player · home-screen launch · fast app shell</span><small>Designed to work from Android 5+ when the device browser supports web apps.</small></div><button className="install-button" onClick={installApp}><Download size={16}/> Download app</button></div>{installMessage&&<div className="install-message"><CheckCircle2 size={16}/>{installMessage}</div>}<div className="me-details"><div><span>APP VERSION</span><strong>1.0.0</strong></div><div><span>PLAYER</span><strong>Web + local video</strong></div><div><span>PRIVACY</span><strong>History stored locally</strong></div></div></section>}
-    <footer className="footer">REALHOUSE · BUILT FOR THE LOVE OF VIDEO <span>Private by default · History stored locally</span></footer>
-   </div>
-  </main>
-  <section className="player-panel"><div className="player-heading"><div><span className="section-kicker">NOW PLAYING</span><h2>Your player</h2></div><span className="live-pill">● LIVE</span></div><div className="video-frame">{yt?<iframe key={current.url} src={`https://www.youtube-nocookie.com/embed/${current.youtubeId||youtubeId(current.url)}?autoplay=1&rel=0`} title={current.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen/>:<video key={current.url} src={current.url} controls playsInline preload="metadata" onError={()=>setNotice("This video could not be loaded. The URL may not be a direct video file or the host may block playback.")}/>}</div><div className="now-playing-info"><div className="now-title"><strong>{current?.title}</strong><span>{current?.subtitle}</span></div><button className="icon-button" onClick={()=>window.open(current.url,"_blank","noopener,noreferrer")}><ExternalLink size={16}/></button></div><div className="player-tools"><button onClick={()=>fileRef.current?.click()}><Upload size={15}/> Open file</button><button onClick={()=>document.getElementById("url-entry")?.focus()}><Link2 size={15}/> Add URL</button></div><div className="player-bottom"><span><span className="status-dot"/> READY</span><span>REALHOUSE PLAYER v1.0</span></div></section>
-  <nav className="mobile-nav"><button className={tab==="discover"?"active":""} onClick={()=>setTab("discover")}><Sparkles/><span>Discover</span></button><button className={tab==="library"?"active":""} onClick={()=>setTab("library")}><Film/><span>Library</span></button><button className={tab==="me"?"active":""} onClick={()=>setTab("me")}><UserRound/><span>Me</span></button></nav>
-  <input ref={fileRef} type="file" accept="video/*" hidden onChange={openFile}/><div className="mobile-file-button"><button onClick={()=>fileRef.current?.click()}><Plus size={17}/> Open video</button></div>
- </div>
+  return (
+    <>
+      <header id="nav">
+        <span className="logo">Reelhouse</span>
+        <span className="sp" />
+        <button className="btn" id="dice" title="Open a random top-rated movie">
+          <span>🎲</span> Surprise me
+        </button>
+      </header>
+      <nav id="tab" aria-label="Main">
+        <a href="#/home" data-r="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg><span>Home</span></a>
+        <a href="#/search" data-r="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg><span>Search</span></a>
+        <a href="#/list" data-r="list"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5 0-13z" /></svg><span>Library</span></a>
+        <a href="#/me" data-r="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-7 8-7s8 3 8 7" /></svg><span>Me</span></a>
+      </nav>
+      <main id="view" />
+      <div className="ov" id="modal" />
+      <div className="ov" id="sheet" />
+      <div id="bar" />
+      <div className="ov" id="setup">
+        <div className="sbox">
+          <h1>Reelhouse</h1>
+          <p>Movie data comes from TMDB. Paste your free API key to start: create an account at{" "}
+            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>{" "}
+            and copy the "API Key" (v3) or the "API Read Access Token".</p>
+          <input id="key" placeholder="TMDB API key or read access token" autoComplete="off" />
+          <div id="err" />
+          <button className="btn pri" id="ksave">Save and start</button>
+        </div>
+      </div>
+      <div id="toast" />
+    </>
+  );
 }
-createRoot(document.getElementById("root")).render(<App/>);
+
+createRoot(document.getElementById("root")).render(
+  <HashRouter>
+    <ReelhouseShell />
+  </HashRouter>
+);
