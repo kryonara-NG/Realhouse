@@ -15,13 +15,15 @@ function ReelhouseShell() {
       <header id="nav">
         <span className="logo">Reelhouse</span>
         <span className="sp" />
-        <button className="btn" id="dice" title="Open a random top-rated movie">
-          <span>🎲</span> Surprise me
-        </button>
-        <button className="icon-btn notification-trigger" id="notifBell" aria-label="Open notifications" title="Notifications">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
-          <span className="notification-badge" id="notifBadge" hidden>0</span>
-        </button>
+        <div className="nav-actions" aria-label="Quick actions">
+          <button className="btn nav-surprise" id="dice" title="Open a random top-rated movie">
+            <span aria-hidden="true">🎲</span><span>Surprise me</span>
+          </button>
+          <button className="icon-btn notification-trigger" id="notifBell" aria-label="Open notifications" title="Notifications">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+            <span className="notification-badge" id="notifBadge" hidden>0</span>
+          </button>
+        </div>
       </header>
       <nav id="tab" aria-label="Main">
         <a href="#/home" data-r="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg><span>Home</span></a>
