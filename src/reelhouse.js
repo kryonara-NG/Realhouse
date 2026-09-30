@@ -267,7 +267,31 @@ async function startTrailer(){if(!requireSession(()=>startTrailer()))return;cons
  const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
  const msg=location.protocol==='file:'?'YouTube blocks trailers when this page is opened as a file. Host it (GitHub Pages or Netlify) or run a local server.':'This trailer cannot be played here.';
  yp=new YT.Player('yt',{videoId:k,playerVars:v,events:{onReady:e=>{e.target.setVolume(80);e.target.playVideo()},onStateChange:e=>{setPP(e.data);spin(e.data===3)},onError:()=>showErr(msg,k)}})}
-async function startFilm(source,title){if(!requireSession(()=>startFilm(source,title)))return;killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');mount('');
+function mountVidSrc(source,title){
+ const w=$('#wp');if(!w)return;
+ const u=source?.url;if(!u)return;
+ w.innerHTML=`<iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="origin"></iframe>${topbar}`;
+ const onMessage=e=>{
+   const frame=$('#vidsrc-frame');if(!frame||e.source!==frame.contentWindow)return;
+   const d=e.data;
+   if(!d||d.type!=='PLAYER_EVENT'||!d.data)return;
+   const info=d.data.player_info||{};
+   const id=info.tmdb||info.imdb||cur.m?.id;
+   const progress=Number(d.data.player_progress);
+   if(id&&Number.isFinite(progress)){S.prog[id]=progress;store.set('prog',S.prog)}
+   if(d.data.player_status==='completed'&&id){S.prog[id]=0;store.set('prog',S.prog)}
+ };
+ window.addEventListener('message',onMessage);
+ cur.vidsrcCleanup=()=>window.removeEventListener('message',onMessage);
+ const frame=$('#vidsrc-frame');
+ if(frame)frame.addEventListener('load',()=>spin(0),{once:true});
+ remember(cur.m);
+}
+async function startFilm(source,title){
+ if(!requireSession(()=>startFilm(source,title)))return;
+ killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');
+ if(source?.type==='vidsrc'||source?.type==='iframe'){mountVidSrc(source,title);return}
+ mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
  if(!$('#wp'))return;
@@ -278,8 +302,9 @@ async function startFilm(source,title){if(!requireSession(()=>startFilm(source,t
  v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1)});v.addEventListener('canplay',()=>spin(0));
  v.addEventListener('pause',()=>setPP(2));v.addEventListener('ended',()=>setPP(0));
  v.addEventListener('error',()=>showErr('Playback failed. This file may not play in your browser.'));
- remember(cur.m)}
-async function filmBtns(m){
+ remember(cur.m)
+}
+async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
  $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
  let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
@@ -295,6 +320,7 @@ async function filmBtns(m){
  const d=$('#dlb');
  if(d&&source.identifier){d.hidden=false;d.dataset.dl=source.identifier;d.dataset.t=m.title}
  const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`);
+ if(startAfterResolve)startFilm(source,titleOf(m));
 }
 async function openSeriesDetail(id,auto){
  killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();
@@ -394,7 +420,7 @@ document.addEventListener('click',e=>{const t=e.target;
  if(t.id==='sheet')return act('sc');
  const a=t.closest('[data-act]');if(a){act(a.dataset.act,a);return}
  if(t.closest('#wp')&&wpClick(t))return;
- if(t.closest('[data-watch-movie]')){if(cur.source)return startFilm(cur.source,titleOf(cur.m));if(cur.film)return startFilm(cur.film,titleOf(cur.m));return filmBtns(cur.m)}
+ if(t.closest('[data-watch-movie]')){if(cur.source)return startFilm(cur.source,titleOf(cur.m));if(cur.film)return startFilm(cur.film,titleOf(cur.m));return filmBtns(cur.m,true)}
  if(t.closest('[data-startp]')){cur.source?startFilm(cur.source,titleOf(cur.m)):cur.film?startFilm(cur.film,titleOf(cur.m)):startTrailer();return}
  const sc=t.closest('[data-src]');if(sc){sc.dataset.src==='film'?(cur.source?startFilm(cur.source,titleOf(cur.m)):startFilm(cur.film,titleOf(cur.m))):startTrailer();return}
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
