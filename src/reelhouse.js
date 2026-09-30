@@ -453,13 +453,7 @@ function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState()
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
-async function startTrailer(){if(!requireSession(()=>startTrailer()))return;const k=cur.tr;if(!k)return toast('No trailer available for this movie');
- killPlayer();pm=null;cur.rt=startTrailer;setSrc('tr');mount('<div id="yt"></div><div class="watch-under"><button class="btn pri" data-watch-movie>Watch Movie</button></div>');remember(cur.m);
- try{await loadYT()}catch{return showErr('YouTube could not load. Check your connection.',k)}
- if(!$('#yt'))return;
- const v={controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,autoplay:1};if(/^https?:/.test(location.protocol))v.origin=location.origin;
- const msg=location.protocol==='file:'?'YouTube blocks trailers when this page is opened as a file. Host it (GitHub Pages or Netlify) or run a local server.':'This trailer cannot be played here.';
- yp=new YT.Player('yt',{videoId:k,playerVars:v,events:{onReady:e=>{e.target.setVolume(80);e.target.playVideo()},onStateChange:e=>{setPP(e.data);spin(e.data===3)},onError:()=>showErr(msg,k)}})}
+async function startTrailer(){if(!cur.source)return filmBtns(cur.m,true);startFilm(cur.source,titleOf(cur.m))}
 function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'');return h.includes('vidsrc')?('Source '+(i+1)):h}catch{return 'Source '+(i+1)}}
 function mountVidSrc(source,title){
  const w=$('#wp');if(!w)return;
@@ -538,23 +532,21 @@ async function openSeriesDetail(id,auto){
  let m;try{m=await api('/tv/'+id,{append_to_response:'credits,similar,videos'})}catch{}
  if(cur.tok!==tok)return;
  if(!m){box.innerHTML=`<div class="wpg"><div class="wp">${topbar}</div><div class="wi"><p class="mt" style="margin-bottom:12px">Could not load this series. Check your connection.</p><button class="btn" data-retry>Retry</button></div></div>`;return}
- const vs=(m.videos?.results||[]).filter(x=>x.site==='YouTube'),tr=vs.find(x=>x.type==='Trailer'&&x.official)||vs.find(x=>x.type==='Trailer')||vs[0];
- cur.m=m;cur.tr=tr&&tr.key;cur.kind='tv';cur.seriesId=id;cur.season=m.seasons?.find(s=>s.season_number>0)?.season_number??0;
+ cur.m=m;cur.tr=null;cur.kind='tv';cur.seriesId=id;cur.season=m.seasons?.find(s=>s.season_number>0)?.season_number??0;
  const cast=(m.credits?.cast||[]).slice(0,14).map(c=>`<div class="cm">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc((c.name||'?')[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character||'')}</small></div>`).join('');
  const bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
  const isS=has('list',m.id),isF=has('fav',m.id);
- box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})">${cur.tr?`<button class="big" data-startp aria-label="Play trailer">${I.play}</button>`:''}</div>${topbar}</div>
+ box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})">`<button class="big" data-startp aria-label="Play series">${I.play}</button>`</div>${topbar}</div>
  <div class="wi"><div class="series-kicker">SERIES</div><h1>${esc(titleOf(m))}</h1>${m.tagline?`<div class="tg">${esc(m.tagline)}</div>`:''}
  <div class="wm"><span class="rt">${I.star}${(m.vote_average||0).toFixed(1)}</span><span>${yr(m)}</span><span>${m.number_of_seasons||0} seasons</span><span>${m.number_of_episodes||0} episodes</span></div>
  <div class="gs">${(m.genres||[]).map(g=>`<span>${esc(g.name)}</span>`).join('')}</div>
- <div class="src" id="src">${cur.tr?'<button class="chip" data-src="tr">Trailer</button>':'<span class="mt nf">No trailer available</span>'}</div>
+ <div class="src" id="src"><span class="mt nf">Full playback loads from VidSrc</span></div>
  <div class="acts"><button class="act ${isS?'on':''}" data-tg="list">${isS?I.bmF:I.bm}<span>${isS?'Saved':'Save'}</span></button><button class="act ${isF?'on':''}" data-tg="fav">${isF?I.heartF:I.heart}<span>${isF?'Favorited':'Favorite'}</span></button></div>
  <p class="ovw" id="ovw">${esc(m.overview)||'No overview available.'}</p>
  <div class="season-bar"><label for="seasonSelect">Season</label><select id="seasonSelect">${(m.seasons||[]).filter(s=>s.season_number>=0).map(s=>`<option value="${s.season_number}" ${s.season_number===cur.season?'selected':''}>Season ${s.season_number}${s.episode_count?` · ${s.episode_count} episodes`:''}</option>`).join('')}</select></div>
  <div id="episodes"><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
  ${cast?`<h3>Cast</h3><div class="cast">${cast}</div>`:''}</div></div>`;
- $('#seasonSelect').onchange=e=>loadSeason(id,+e.target.value);loadSeason(id,cur.season);if(auto==='trailer')startTrailer();
-}
+ $('#seasonSelect').onchange=e=>loadSeason(id,+e.target.value);loadSeason(id,cur.season);}
 async function loadSeason(seriesId,season){
  const wrap=$('#episodes');if(!wrap)return;cur.season=season;wrap.innerHTML='<div class="ln"></div><div class="ln"></div><div class="ln"></div>';
  try{const d=await api('/tv/'+seriesId+'/season/'+season);if(!$('#episodes'))return;const eps=d.episodes||[];
@@ -580,8 +572,7 @@ async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeries
  let m;try{m=await api('/movie/'+id,{append_to_response:'credits,similar,videos'})}catch{}
  if(cur.tok!==tok)return;
  if(!m){box.innerHTML=`<div class="wpg"><div class="wp">${topbar}</div><div class="wi"><p class="mt" style="margin-bottom:12px">Could not load this movie. Check your connection.</p><button class="btn" data-retry>Retry</button></div></div>`;return}
- const vs=m.videos.results.filter(x=>x.site==='YouTube'),tr=vs.find(x=>x.type==='Trailer'&&x.official)||vs.find(x=>x.type==='Trailer')||vs[0];
- cur.m=m;cur.tr=tr&&tr.key;
+ cur.m=m;cur.tr=null;
  const cast=m.credits.cast.slice(0,14).map(c=>`<div class="cm">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc(c.name[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character)}</small></div>`).join('');
  const dir=m.credits.crew.find(c=>c.job==='Director'),bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
  const isS=has('list',m.id),isF=has('fav',m.id),rel=m.similar.results.filter(x=>x.poster_path);
@@ -594,7 +585,6 @@ async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeries
  <p class="ovw" id="ovw">${esc(m.overview)||'No overview available.'}</p>${(m.overview||'').length>140?'<button class="more2" data-more>More</button>':''}
  ${cast?`<h3>Cast</h3><div class="cast">${cast}</div>`:''}
  ${rel.length?`<h3>More like this</h3><div class="sc sm">${rel.map(card).join('')}</div>`:''}</div></div>`;
- if(auto==='trailer')startTrailer();
  filmBtns(m)}
 async function openFilm(id,title){killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');
  box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();cur.mode='none';cur.tr=null;cur.rt=()=>openFilm(id,title);
