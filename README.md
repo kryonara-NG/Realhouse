@@ -22,3 +22,7 @@ Movie metadata and trailers use TMDB and YouTube as in the original HTML. Free-f
 
 ## PWA
 The same web build includes a manifest, service worker and installable app shell.
+
+
+### Search UI update
+- Compact search filters, live suggestions, mixed movie/series discovery, anime browsing, and series season/episode navigation are enabled.
