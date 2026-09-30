@@ -28,7 +28,6 @@ function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
  if(KEY.length>40)h.Authorization='Bearer '+KEY;else u.searchParams.set('api_key',KEY);
  for(const k in q)u.searchParams.set(k,q[k]);
  return jget(u.href,h,!/^\/movie\/\d/.test(p))}
-const yr=m=>(m.release_date||'').slice(0,4)||'—';
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
 const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.name);
 const titleOf=m=>m.title||m.name||m.original_title||m.original_name||'Untitled';
