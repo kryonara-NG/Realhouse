@@ -67,7 +67,7 @@ async function findAvailableMovie(m){
     const info=await probe(base+`/info/movie/${encodeURIComponent(m.id)}.json`);
     if(info?.status_code===200||info?.embed_url_tmdb||info?.embed_url)return {base,id:info.imdb_id||info.tmdb_id||m.id,info};
   }
-  return null;
+  return {base:VIDSRC_BASE,id:m.id,info:{}};
 }
 async function findAvailableEpisode(series,season,episode){
   if(!series?.id)return null;
@@ -75,7 +75,7 @@ async function findAvailableEpisode(series,season,episode){
     const info=await probe(base+`/info/tv/${encodeURIComponent(series.id)}/${encodeURIComponent(season)}/${encodeURIComponent(episode)}.json`);
     if(info?.status_code===200||info?.embed_url_tmdb||info?.embed_url)return {base,id:info.imdb_id||info.tmdb_id||series.id,info};
   }
-  return null;
+  return {base:VIDSRC_BASE,id:series.id,info:{}};
 }
 export async function resolveMovieSource(m){
   const key='movie:'+m?.id;
