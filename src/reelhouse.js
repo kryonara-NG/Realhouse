@@ -75,8 +75,8 @@ addEventListener('scroll',()=>$('#nav').classList.toggle('solid',scrollY>60),{pa
 /* ---------- home ---------- */
 const ROWS=[['Trending this week','/trending/movie/week'],['Popular right now','/movie/popular'],['Top rated of all time','/movie/top_rated'],['In theaters','/movie/now_playing'],['Coming soon','/movie/upcoming']];
 async function home(){
- view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Free full movies to stream","ia")}${recentRow()}${ROWS.map((r,i)=>`<section class="row"><h2>${r[0]}</h2><div class="rw"><button class="arr l" aria-label="Scroll left">${I.l}</button><div class="sc" id="r${i}">${'<div class="sk"></div>'.repeat(8)}</div><button class="arr r" aria-label="Scroll right">${I.r}</button></div></section>`).join('')}</div>`;
- loadIA();
+ view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Newly added","vidsrcLatest")} ${rowShell("Free full movies to stream","ia")}${recentRow()}${ROWS.map((r,i)=>`<section class="row"><h2>${r[0]}</h2><div class="rw"><button class="arr l" aria-label="Scroll left">${I.l}</button><div class="sc" id="r${i}">${'<div class="sk"></div>'.repeat(8)}</div><button class="arr r" aria-label="Scroll right">${I.r}</button></div></section>`).join('')}</div>`;
+ loadIA();loadVidSrcLatest();
  ROWS.forEach(async(r,i)=>{try{const d=await api(r[1]);
   if(!i)hero(d.results.filter(m=>m.backdrop_path).slice(0,6));
   $('#r'+i).innerHTML=d.results.map(card).join('')}catch{$('#r'+i).innerHTML='<p class="empty">Could not load this row. Check your API key and connection.</p>'}})}
@@ -98,6 +98,25 @@ const rc=r=>r.ia?iaCard(r):card(r);
 const recentRow=()=>lists.recent.length?rowShell('Continue watching','cw',lists.recent.slice(0,12).map(rc).join('')):'';
 const iaCard=x=>{const id=esc(x.identifier||x.id);return `<a class="card" tabindex="0" role="button" data-ia="${id}" data-t="${esc(x.title)}"><i class="f">FREE</i><img loading="lazy" src="https://archive.org/services/img/${id}" alt=""><div class="m"><b>${esc(x.title)}</b><span>${esc(x.year||'Classic')}</span></div></a>`};
 async function iaList(q,n){return(await jget('https://archive.org/advancedsearch.php?q='+encodeURIComponent(q)+'&fl[]=identifier&fl[]=title&fl[]=year&sort[]=downloads+desc&rows='+n+'&output=json',undefined,true)).response.docs}
+async function loadVidSrcLatest(){
+ const box=$('#vidsrcLatest');if(!box)return;
+ try{
+  const [m,t]=await Promise.all([
+   jget('https://vidsrc.sh/movies/latest/page-1.json',undefined,true),
+   jget('https://vidsrc.sh/tvshows/latest/page-1.json',undefined,true)
+  ]);
+  const ids=[...(m?.result||[]).slice(0,10),...(t?.result||[]).slice(0,10)];
+  const unique=[...new Map(ids.map(x=>[String(x.tmdb_id||x.imdb_id),x])).values()].slice(0,14);
+  const hydrated=(await Promise.all(unique.map(async x=>{
+    try{
+      const path=x.tmdb_id?(x.title?.match(/\\d{4}$/)?'/movie/':'/movie/')+encodeURIComponent(x.tmdb_id):null;
+      if(!path)return null;
+      return await api(path);
+    }catch{return null}
+  }))).filter(Boolean);
+  box.innerHTML=hydrated.map(card).join('')||'<p class="empty">Fresh additions could not load right now.</p>';
+ }catch{box.innerHTML='<p class="empty">Fresh additions could not load right now.</p>'}
+}
 async function loadIA(){try{const d=await iaList('collection:feature_films AND mediatype:movies',24);$('#ia').innerHTML=d.map(iaCard).join('')}catch{const e=$('#ia');if(e)e.innerHTML='<p class="empty">Free films could not load right now.</p>'}}
 async function findFilm(m){const t=norm(m.title),y=+yr(m);
  const d=await iaList(`title:("${m.title.replace(/"/g,'')}") AND mediatype:movies AND (collection:feature_films OR collection:moviesandfilms)`,8);
