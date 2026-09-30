@@ -197,8 +197,60 @@ function mylist(){const L=lists[tab];
 
 /* ---------- app install ---------- */
 const APK_URL=['https:','github.com','kryonara-NG','Realhouse','releases','latest','download','Reelhouse.apk'].join('/');
+const RELEASE_API='https://api.github.com/repos/kryonara-NG/Realhouse/releases/latest';
+async function downloadApp(){
+ toast('Checking for the latest Reelhouse APK…');
+ try{
+  const r=await fetch(RELEASE_API,{headers:{Accept:'application/vnd.github+json'}});
+  if(!r.ok)throw new Error('release '+r.status);
+  const d=await r.json();
+  const asset=(d.assets||[]).find(x=>x.name==='Reelhouse.apk');
+  if(!asset?.browser_download_url)throw new Error('APK asset missing');
+  window.location.assign(asset.browser_download_url);
+ }catch{toast('Latest APK could not be resolved. Opening the official download address…');setTimeout(()=>window.location.assign(APK_URL),450)}
+}
+function notificationState(){return store.get('rh:notifications',{enabled:false,seen:[]})}
+async function showReelhouseNotification(title,body,url='#/home'){
+ if(!('Notification' in window)||Notification.permission!=='granted')return;
+ try{const reg=await navigator.serviceWorker?.ready;if(reg?.showNotification){await reg.showNotification(title,{body,icon:'/icon.svg',badge:'/icon.svg',tag:'reelhouse-movie',data:{url}});return}new Notification(title,{body,icon:'/icon.svg'})}catch{}
+}
+async function checkMovieNotifications(seed=false){
+ const ns=notificationState();if(!ns.enabled||!('Notification' in window)||Notification.permission!=='granted')return;
+ try{
+  const [now,up]=await Promise.all([api('/movie/now_playing',{language:'en-US',page:1}),api('/movie/upcoming',{language:'en-US',page:1})]);
+  const movies=[...(now.results||[]),...(up.results||[])].filter(x=>x?.id);const seen=new Set(ns.seen||[]);
+  if(seed){ns.seen=movies.slice(0,40).map(x=>x.id);store.set('rh:notifications',ns);return}
+  const fresh=movies.filter(x=>!seen.has(x.id)&&x.poster_path).slice(0,3);
+  ns.seen=[...movies.map(x=>x.id),...(ns.seen||[])].filter((v,i,a)=>a.indexOf(v)===i).slice(0,80);store.set('rh:notifications',ns);
+  if(fresh.length){await showReelhouseNotification(fresh.length===1?'New movie on Reelhouse':'New movies on Reelhouse',fresh.map(x=>x.title).join(', '))}
+ }catch{}
+}
+async function enableMovieNotifications(){
+ if(!('Notification' in window))return toast('This browser does not support notifications.');
+ const p=await Notification.requestPermission();if(p!=='granted')return toast('Notification permission was not granted.');
+ const ns=notificationState();ns.enabled=true;store.set('rh:notifications',ns);await checkMovieNotifications(true);toast('Movie notifications enabled');app();
+}
+function disableMovieNotifications(){const ns=notificationState();ns.enabled=false;store.set('rh:notifications',ns);toast('Movie notifications turned off');app()}
 function app(){
- view.innerHTML=`<div class="pg"><div class="hi"><h1>Download Reelhouse</h1><p>Get the Android app for the full Reelhouse experience. The button always points to the latest APK release.</p><a class="btn pri" href="${APK_URL}" download>Download Android APK</a><button class="btn" data-act="install">${installPrompt?'Install Reelhouse':'Add to home screen'}</button></div><div class="li"><div><b>Android app updates</b><small class="mt" style="display:block">New releases replace the APK at the same download address.</small></div></div><p class="mt" style="margin-top:16px">If you only want the web app, use “Add to home screen” instead.</p></div>`;
+ const ns=store.get('rh:notifications',{enabled:false,seen:[]});
+ const supported='Notification' in window;
+ const status=!supported?'Not supported':ns.enabled?'Enabled':'Off';
+ view.innerHTML=`<div class="pg app-page">
+ <div class="hi">
+  <h1>Download Reelhouse</h1>
+  <p>Get the Android app for the full Reelhouse experience. The download button resolves the latest published APK before starting the download.</p>
+  <div class="app-actions">
+   <button class="btn pri" data-act="downloadapp">${I.dl}<span>Download Android APK</span></button>
+   <button class="btn" data-act="install">${installPrompt?'Install Reelhouse':'Add to home screen'}</button>
+  </div>
+  <small class="app-note">Latest APK · Android app · one download address</small>
+ </div>
+ <section class="download-tools">
+  <div class="li app-tool"><div><b>Movie notifications</b><small class="mt">Get notified when new movies arrive on Reelhouse.</small></div><span class="notif-status">${esc(status)}</span><button class="chip" data-act="${ns.enabled?'notifsoff':'notifson'}">${ns.enabled?'Turn off':'Enable'}</button></div>
+  <div class="li app-tool"><div><b>App updates</b><small class="mt">The Download Android APK button always checks the newest published release.</small></div></div>
+ </section>
+ <p class="mt app-help">Notifications are only used for Reelhouse movie and app updates. You can turn them off at any time.</p>
+ </div>`;
 }
 /* ---------- me, accounts, settings ---------- */
 const ic=p=>`<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
@@ -227,6 +279,9 @@ async function authGo(m){const e=$('#ae').value.trim().toLowerCase(),p=$('#ap').
  store.set('acct',acct);session=true;store.set('sess',true);act('sc');toast('Welcome, '+acct.name);const resume=pendingWatch;pendingWatch=null;if(resume)return resume();me()}
 function act(n,el){switch(n){
  case'install':return (async()=>{if(!installPrompt)return toast('Use your browser menu to choose “Install app” or “Add to Home screen”.');installPrompt.prompt();try{await installPrompt.userChoice}catch{}installPrompt=null;return app()})();
+ case'downloadapp':return downloadApp();
+ case'notifson':return enableMovieNotifications();
+ case'notifsoff':return disableMovieNotifications();
  case'in':case'up':return authSheet(n);
  case'sc':return $('#sheet').classList.remove('on');
  case'go':return authGo(el.dataset.mode);
@@ -449,5 +504,9 @@ document.addEventListener('keydown',e=>{if(e.target.matches('input'))return;
  if(e.key==='/'&&$('#sq')){e.preventDefault();$('#sq').focus()}});
 $('#dice').onclick=surprise;
 route();
+let notifTimer=null;
+function startNotificationMonitor(){clearInterval(notifTimer);const ns=notificationState();if(ns.enabled&&'Notification' in window&&Notification.permission==='granted'){checkMovieNotifications(false);notifTimer=setInterval(()=>checkMovieNotifications(false),30*60*1000)}}
+startNotificationMonitor();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)startNotificationMonitor()});
 
 }
