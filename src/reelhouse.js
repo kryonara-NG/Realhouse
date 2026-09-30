@@ -73,25 +73,118 @@ addEventListener('hashchange',route);
 addEventListener('scroll',()=>$('#nav').classList.toggle('solid',scrollY>60),{passive:true});
 
 /* ---------- home ---------- */
-const ROWS=[['Trending this week','/trending/movie/week'],['Popular right now','/movie/popular'],['Top rated of all time','/movie/top_rated'],['In theaters','/movie/now_playing'],['Coming soon','/movie/upcoming']];
+const CATALOG_SECTIONS=[
+ {id:'trending',title:'Trending now',path:'/trending/all/week',kind:'mixed'},
+ {id:'popular-movies',title:'Popular movies',path:'/movie/popular',kind:'movie'},
+ {id:'popular-series',title:'Popular series',path:'/tv/popular',kind:'tv'},
+ {id:'new-movies',title:'New movies',path:'/movie/now_playing',kind:'movie'},
+ {id:'new-series',title:'New series',path:'/tv/on_the_air',kind:'tv'},
+ {id:'top-rated',title:'Top rated movies',path:'/movie/top_rated',kind:'movie'},
+ {id:'anime',title:'Anime',path:'/discover/tv',kind:'tv',params:{with_genres:'16',with_origin_country:'JP',with_original_language:'ja'}},
+ {id:'animation',title:'Animation',path:'/discover/movie',kind:'movie',params:{with_genres:'16'}},
+ {id:'kdrama',title:'K-dramas',path:'/discover/tv',kind:'tv',params:{with_origin_country:'KR',with_original_language:'ko'}},
+ {id:'cdrama',title:'C-dramas',path:'/discover/tv',kind:'tv',params:{with_origin_country:'CN',with_original_language:'zh'}},
+ {id:'jdrama',title:'J-dramas',path:'/discover/tv',kind:'tv',params:{with_origin_country:'JP',with_original_language:'ja'}},
+ {id:'indian',title:'Indian cinema',path:'/discover/movie',kind:'movie',params:{with_origin_country:'IN'}},
+ {id:'nollywood',title:'Nollywood',path:'/discover/movie',kind:'movie',params:{with_origin_country:'NG'}},
+ {id:'turkish',title:'Turkish dramas',path:'/discover/tv',kind:'tv',params:{with_origin_country:'TR',with_original_language:'tr'}},
+ {id:'action',title:'Action',path:'/discover/movie',kind:'movie',params:{with_genres:'28'}},
+ {id:'comedy',title:'Comedy',path:'/discover/movie',kind:'movie',params:{with_genres:'35'}},
+ {id:'romance',title:'Romance',path:'/discover/movie',kind:'movie',params:{with_genres:'10749'}},
+ {id:'thriller',title:'Thrillers',path:'/discover/movie',kind:'movie',params:{with_genres:'53'}},
+ {id:'horror',title:'Horror',path:'/discover/movie',kind:'movie',params:{with_genres:'27'}},
+ {id:'scifi',title:'Sci-fi',path:'/discover/movie',kind:'movie',params:{with_genres:'878'}},
+ {id:'crime',title:'Crime',path:'/discover/tv',kind:'tv',params:{with_genres:'80'}},
+ {id:'documentary',title:'Documentaries',path:'/discover/movie',kind:'movie',params:{with_genres:'99'}},
+ {id:'family',title:'Family',path:'/discover/movie',kind:'movie',params:{with_genres:'10751'}},
+ {id:'fantasy',title:'Fantasy',path:'/discover/movie',kind:'movie',params:{with_genres:'14'}},
+ {id:'music',title:'Music & performance',path:'/discover/movie',kind:'movie',params:{with_genres:'10402'}}
+];
+
+const HOME_BATCH=5;
+let homeCatalogObserver=null;
+const catalogState=new Map();
+
+function catalogShell(s){
+ return `<section class="row catalog-row" data-catalog="${s.id}"><h2>${esc(s.title)}</h2><div class="rw"><button class="arr l" aria-label="Scroll left">${I.l}</button><div class="sc" id="cat-${s.id}">${'<div class="sk"></div>'.repeat(10)}</div><button class="arr r" aria-label="Scroll right">${I.r}</button></div></section>`;
+}
+function catalogParams(s,page){
+ return {sort_by:s.params?.sort_by||'popularity.desc',include_adult:false,page,...(s.params||{})};
+}
+async function loadCatalogPage(s,page=1,append=false){
+ const box=$('#cat-'+s.id);if(!box)return;
+ const state=catalogState.get(s.id)||{page:0,loading:false,total:1,seen:new Set()};
+ if(state.loading)return;
+ if(page>state.total)return;
+ state.loading=true;catalogState.set(s.id,state);
+ try{
+   const d=await api(s.path,catalogParams(s,page));
+   const results=(d.results||[]).filter(m=>m.poster_path).map(m=>s.kind==='movie'?{...m,media_type:'movie'}:s.kind==='tv'?{...m,media_type:'tv'}:m);
+   const fresh=results.filter(m=>{const k=m.media_type+':'+m.id;if(state.seen.has(k))return false;state.seen.add(k);return true});
+   box.insertAdjacentHTML(append?'beforeend':'afterbegin',fresh.map(card).join(''));
+   state.page=page;state.total=Math.min(Number(d.total_pages)||page,500);state.loading=false;catalogState.set(s.id,state);
+   if(!fresh.length&&page<state.total)loadCatalogPage(s,page+1,true);
+ }catch{
+   state.loading=false;catalogState.set(s.id,state);
+   if(!append)box.innerHTML='<p class="empty">This section could not load right now.</p>';
+ }
+}
+function watchCatalogScroll(s){
+ const box=$('#cat-'+s.id);if(!box||box.dataset.infinite)return;
+ box.dataset.infinite='1';
+ box.addEventListener('scroll',()=>{
+   if(box.scrollLeft+box.clientWidth>=box.scrollWidth-420){
+     const st=catalogState.get(s.id);
+     if(st&&!st.loading&&st.page<st.total)loadCatalogPage(s,st.page+1,true);
+   }
+ },{passive:true});
+}
+async function loadHomeBatch(offset=0){
+ const sections=CATALOG_SECTIONS.slice(offset,offset+HOME_BATCH);
+ sections.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false)});
+}
+function setupHomeInfinite(){
+ const sentinel=document.createElement('div');sentinel.id='homeInfinite';sentinel.className='home-infinite-sentinel';view.appendChild(sentinel);
+ homeCatalogObserver?.disconnect();
+ homeCatalogObserver=new IntersectionObserver(entries=>{
+   if(!entries[0].isIntersecting)return;
+   const loaded=[...view.querySelectorAll('[data-catalog]')].length;
+   if(loaded<CATALOG_SECTIONS.length){
+     const next=Math.min(loaded,CATALOG_SECTIONS.length-1);
+     const chunk=CATALOG_SECTIONS.slice(next,next+HOME_BATCH);
+     chunk.forEach(s=>view.querySelector('.rows').insertAdjacentHTML('beforeend',catalogShell(s)));
+     chunk.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false)});
+   }else{
+     sentinel.innerHTML='<span>More entertainment is loading as you keep scrolling…</span>';
+   }
+ },{rootMargin:'900px'});
+ homeCatalogObserver.observe(sentinel);
+}
 async function home(){
- view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Newly added","vidsrcLatest")} ${rowShell("Free full movies to stream","ia")}${recentRow()}${ROWS.map((r,i)=>`<section class="row"><h2>${r[0]}</h2><div class="rw"><button class="arr l" aria-label="Scroll left">${I.l}</button><div class="sc" id="r${i}">${'<div class="sk"></div>'.repeat(8)}</div><button class="arr r" aria-label="Scroll right">${I.r}</button></div></section>`).join('')}</div>`;
+ catalogState.clear();
+ const initial=CATALOG_SECTIONS.slice(0,HOME_BATCH);
+ view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Newly added","vidsrcLatest")} ${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}</div>`;
  loadIA();loadVidSrcLatest();
- ROWS.forEach(async(r,i)=>{try{const d=await api(r[1]);
-  if(!i)hero(d.results.filter(m=>m.backdrop_path).slice(0,6));
-  $('#r'+i).innerHTML=d.results.map(card).join('')}catch{$('#r'+i).innerHTML='<p class="empty">Could not load this row. Check your API key and connection.</p>'}})}
-function hero(ms){$('.hero').classList.add('ready');const bgs=[...view.querySelectorAll('.bg')],hc=$('.hc'),dots=$('.dots');let i=0,f=0;
+ initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});loadCatalogPage(s,1,false);});
+ setupHomeInfinite();
+ try{
+   const d=await api('/trending/movie/week');
+   hero((d.results||[]).filter(m=>m.backdrop_path).slice(0,6));
+ }catch{}
+}
+function hero(ms){
+ if(!ms.length)return;
+ $('.hero').classList.add('ready');const bgs=[...view.querySelectorAll('.bg')],hc=$('.hc'),dots=$('.dots');let i=0,f=0;
  dots.innerHTML=ms.map((_,j)=>`<button aria-label="Show featured movie ${j+1}"></button>`).join('');
  const show=n=>{i=n;f^=1;const m=ms[n];bgs[f].style.backgroundImage=`url(${IMG}${innerWidth>900?'w1280':'w780'}${m.backdrop_path})`;
   bgs[f].classList.add('show');bgs[f^1].classList.remove('show');
   hc.classList.remove('in');void hc.offsetWidth;hc.classList.add('in');
-  hc.innerHTML=`<div class="mt"><b class="rt">${I.star}${m.vote_average.toFixed(1)}</b> &nbsp;${yr(m)}</div><h1>${esc(m.title)}</h1><p>${esc(m.overview)}</p><div><button class="btn pri" data-play="${m.id}" data-t="${esc(m.title)}">${I.play} Play trailer</button><button class="btn" data-id="${m.id}">More info</button></div>`;
+  hc.innerHTML=`<div class="mt"><b class="rt">${I.star}${(m.vote_average||0).toFixed(1)}</b> &nbsp;${yr(m)}</div><h1>${esc(titleOf(m))}</h1><p>${esc(m.overview||'')}</p><div><button class="btn pri" data-play="${m.id}" data-t="${esc(titleOf(m))}">${I.play} Play trailer</button><button class="btn" data-id="${m.id}" data-kind="movie">More info</button></div>`;
   [...dots.children].forEach((d,j)=>d.classList.toggle('on',j===n))};
  dots.onclick=e=>{const j=[...dots.children].indexOf(e.target);if(j>-1){show(j);restart()}};
  const restart=()=>{clearInterval(cur.hero);if(S.rotate)cur.hero=setInterval(()=>show((i+1)%ms.length),8000)};
- show(0);restart()}
-
-/* ---------- free films (Internet Archive) ---------- */
+ show(0);restart();
+}/* ---------- free films (Internet Archive) ---------- */
 const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
 const rowShell=(t,id,inner)=>`<section class="row"><h2>${t}</h2><div class="rw"><button class="arr l" aria-label="Scroll left">${I.l}</button><div class="sc" id="${id}">${inner??'<div class="sk"></div>'.repeat(8)}</div><button class="arr r" aria-label="Scroll right">${I.r}</button></div></section>`;
 const rc=r=>r.ia?iaCard(r):card(r);
