@@ -7,7 +7,8 @@ Faithful React/Vite conversion of the supplied Reelhouse single-file HTML app.
 - `npm run dev`
 - `npm run build`
 - Deploy the Vite output to Vercel/Netlify.
-- Enter a TMDB v3 API key or v4 read token on first launch.
+- TMDB uses the configured application Read Access Token automatically; there is no first-launch API-key setup screen.
+- Browsing is public, but trailers/full playback require a Reelhouse account login.
 
 ## Android
 1. `npm install`
@@ -19,6 +20,10 @@ Capacitor is configured with `server.androidScheme = "https"`.
 
 ## Sources
 Movie metadata and trailers use TMDB and YouTube as in the original HTML. Free-film discovery/playback/downloads use Internet Archive as in the original HTML.
+
+## Downloads
+- Internet Archive movie files use the browser's native download flow; the download URL is also saved under Me → Downloads for retrying.
+- The Android app link points to the stable GitHub `releases/latest/download/Reelhouse.apk` address so a published latest release replaces the file without changing the app UI.
 
 ## PWA
 The same web build includes a manifest, service worker and installable app shell.
