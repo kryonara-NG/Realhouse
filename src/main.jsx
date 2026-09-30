@@ -24,7 +24,6 @@ function ReelhouseShell() {
         <a href="#/search" data-r="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg><span>Search</span></a>
         <a href="#/list" data-r="list"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5-7 5z" /></svg><span>Library</span></a>
         <a href="#/me" data-r="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-7 8-7s8 3 8 7" /></svg><span>Me</span></a>
-        <a href="#/app" data-r="app"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14" /></svg><span>Download App</span></a>
       </nav>
       <main id="view" />
       <div className="ov" id="modal" />
