@@ -35,7 +35,7 @@ jobs:
       - name: Extract one authorized VidSrc movie stream
         run: |
           rm -f /tmp/vidsrc-streams.json
-          python scripts/vidsrc_stream.py             --media-key movie:550             --base-url https://vidsrcme.ru             --allowed-host vidsrcme.ru             --allow-discovered-media-hosts             --timeout-ms 30000             --streams-file /tmp/vidsrc-streams.json
+          python scripts/vidsrc_stream.py             --media-key movie:68721             --base-url https://vidsrc.sh             --allowed-host vidsrc.sh             --allow-discovered-media-hosts             --timeout-ms 30000             --streams-file /tmp/vidsrc-streams.json
       - name: Validate discovered media
         run: |
           python - <<'PY'
@@ -44,7 +44,7 @@ jobs:
           from pathlib import Path
 
           data = json.loads(Path("/tmp/vidsrc-streams.json").read_text())
-          source = data.get("movie:550")
+          source = data.get("movie:68721")
           if not isinstance(source, dict) or not source.get("url"):
               raise SystemExit("No playable media URL was discovered")
 
