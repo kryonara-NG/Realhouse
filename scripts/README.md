@@ -1,32 +1,31 @@
-# Realhouse catalog importer
+# Realhouse scripts
 
-This folder bridges the separate Python Scrapper project and Realhouse.
+## Catalog import
 
-## Run Scrapper
+`import_scrapper.py` imports catalog/page-link output from the Scrapper project. It does not extract or download video streams.
 
-Keep the repositories beside each other:
+## Local HLS stream utility
 
-    projects/
-      Realhouse/
-      Scrapper/
+`vidsrc_stream.py` is a local Playwright + FFmpeg utility for inspecting an authorized player URL and capturing an HLS playlist.
 
-Inside `Scrapper/`:
+Install the Python dependencies, install Chromium once, then run:
 
-    python -m pip install -r requirements.txt
-    python main.py both
+```bash
+python -m pip install -r backend/requirements.txt
+npm run vidsrc:setup
+python scripts/vidsrc_stream.py "https://example.com/player" -o ./tmp/movie.mp4
+```
 
-This creates `films.txt` and/or `series.txt`.
+Or:
 
-## Import into Realhouse
+```bash
+npm run vidsrc:extract -- "https://example.com/player" -o ./tmp/movie.mp4
+```
 
-From the Realhouse root:
+Requirements:
+- Python 3.10+
+- Playwright Chromium
+- FFmpeg available on PATH
 
-    python scripts/import_scrapper.py
-
-Or provide explicit paths:
-
-    python scripts/import_scrapper.py --films /path/to/Scrapper/films.txt --series /path/to/Scrapper/series.txt
-
-The generated catalog is `public/data/scrapper-catalog.json` and is available to the frontend as `/data/scrapper-catalog.json`.
-
-This bridge imports catalog/page-link metadata only. It does not extract, download, proxy, or re-host third-party video streams.
+The utility is intentionally local. The Vite/Vercel frontend does not launch a browser or FFmpeg process.
+Use it only with media you are authorized to access/download.
