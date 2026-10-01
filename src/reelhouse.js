@@ -620,7 +620,12 @@ document.addEventListener('click',e=>{const t=e.target;
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
  const pl=t.closest('[data-play]');if(pl){openDetail(pl.dataset.play,'trailer');return}
  const fi=t.closest('[data-ia]');if(fi){openFilm(fi.dataset.ia,fi.dataset.t);return}
- const dl=t.closest('[data-dl]');if(dl&&dl.dataset.dl){download(dl.dataset.dl,dl.dataset.t);return}\n const ns=t.closest('[data-native-share]');if(ns){shareNativeById(ns.dataset.nativeShare);return}\n const no=t.closest('[data-native-open]');if(no){openNativeById(no.dataset.nativeOpen);return}\n const nd=t.closest('[data-native-delete]');if(nd){deleteNativeById(nd.dataset.nativeDelete);return}\n const ur=t.closest('[data-upcoming-id]');if(ur){addReleaseReminder(ur.dataset.upcomingTitle,ur.dataset.upcomingDate,ur.dataset.upcomingOverview);return}\n const pe=t.closest('[data-person]');if(pe){location.hash='#/person/'+pe.dataset.person;return}
+ const dl=t.closest('[data-dl]');if(dl&&dl.dataset.dl){download(dl.dataset.dl,dl.dataset.t);return}
+ const ns=t.closest('[data-native-share]');if(ns){shareNativeById(ns.dataset.nativeShare);return}
+ const no=t.closest('[data-native-open]');if(no){openNativeById(no.dataset.nativeOpen);return}
+ const nd=t.closest('[data-native-delete]');if(nd){deleteNativeById(nd.dataset.nativeDelete);return}
+ const ur=t.closest('[data-upcoming-id]');if(ur){addReleaseReminder(ur.dataset.upcomingTitle,ur.dataset.upcomingDate,ur.dataset.upcomingOverview);return}
+ const pe=t.closest('[data-person]');if(pe){location.hash='#/person/'+pe.dataset.person;return}
  const tg=t.closest('[data-tg]');if(tg&&cur.m&&!cur.m.ia){toggleAct(tg);return}
  const mo=t.closest('[data-more]');if(mo){const o=$('#ovw');o.classList.toggle('open');mo.textContent=o.classList.contains('open')?'Less':'More';return}
  if(t.closest('[data-close]')){closeDetail();return}
