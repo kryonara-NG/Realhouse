@@ -1,6 +1,7 @@
 import { resolveMovieSource, resolveEpisodeSource, VIDSRC_MIRRORS } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
 import { registerPlugin } from '@capacitor/core';
+import Hls from 'hls.js';
 
 export function mountReelhouse(){
 
@@ -478,7 +479,7 @@ const fmt=s=>{s=Math.floor(s||0);return Math.floor(s/60)+':'+String(s%60).padSta
 function remember(m){const x=m.ia?m:slim(m);lists.recent=[{...x,at:Date.now()},...lists.recent.filter(r=>r.id!==x.id)].slice(0,40);store.set('recent',lists.recent)}
 function saveProg(){if(pm&&yp){try{const t=yp.getCurrentTime(),d=yp.getDuration();S.prog[pm.id]=d&&t/d>.95?0:t;store.set('prog',S.prog)}catch{}}pm=null}
 const vAdapter=v=>({getPlayerState:()=>v.ended?0:v.paused?2:1,pauseVideo:()=>v.pause(),playVideo:()=>{v.play().catch(()=>{})},seekTo:t=>{const e=v.ended;v.currentTime=t;if(e)v.play().catch(()=>{})},getCurrentTime:()=>v.currentTime,getDuration:()=>v.duration||0,isMuted:()=>v.muted,mute:()=>{v.muted=true},unMute:()=>{v.muted=false},setVolume:x=>{v.volume=x/100},getPlaybackRate:()=>v.playbackRate,setPlaybackRate:r=>{v.playbackRate=r},destroy:()=>{v.pause();v.removeAttribute('src');v.load()}});
-function killPlayer(){saveProg();clearInterval(tick);try{yp&&yp.destroy()}catch{}yp=null;try{cur.vidsrcCleanup&&cur.vidsrcCleanup()}catch{}cur.vidsrcCleanup=null}
+function killPlayer(){saveProg();clearInterval(tick);try{yp&&yp.destroy()}catch{}yp=null;try{cur.hls&&cur.hls.destroy()}catch{}cur.hls=null;try{cur.vidsrcCleanup&&cur.vidsrcCleanup()}catch{}cur.vidsrcCleanup=null}
 function closeDetail(){killPlayer();cur.tok=(cur.tok||0)+1;const b=$('#modal');b.classList.remove('on');b.innerHTML='';document.body.style.overflow=''}
 const setPP=s=>{const b=$('#pp');if(b)b.innerHTML=s===1?I.pause:s===0?I.replay:I.play};
 const spin=on=>{const e=$('#spin');if(e)e.classList.toggle('on',!!on)};
@@ -520,7 +521,22 @@ function mountNativeVideo(url,title,source={}){
  const safeTitle=title||'Now playing';
  w.innerHTML=`<div class="native-player"><video id="vd" playsinline controls preload="metadata" autoplay aria-label="${esc(safeTitle)}"></video><div class="native-player-title"><span class="player-live-dot"></span><span>${esc(safeTitle)}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div></div>`;
  const v=$('#vd');if(!v)return;
- v.src=url;yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source};v.volume=.8;
+ if(/\.m3u8(?:$|\?)/i.test(url)&&!v.canPlayType('application/vnd.apple.mpegurl')){
+   if(Hls.isSupported()){
+     cur.hls=new Hls({enableWorker:true});
+     cur.hls.loadSource(url);
+     cur.hls.attachMedia(v);
+     cur.hls.on(Hls.Events.ERROR,(_,data)=>{
+       if(data?.fatal){try{cur.hls.destroy()}catch{}cur.hls=null;showErr('The extracted HLS stream could not be played.')}
+     });
+   }else{
+     showErr('This browser cannot play the extracted HLS stream.');
+     return;
+   }
+ }else{
+   v.src=url;
+ }
+ yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source};v.volume=.8;
  const t=Number(S.prog[pm.id]||0);
  if(t)v.addEventListener('loadedmetadata',()=>{try{v.currentTime=t}catch{}},{once:true});
  const save=()=>{if(pm?.id&&Number.isFinite(v.currentTime)){S.prog[pm.id]=v.currentTime;store.set('prog',S.prog)}};
