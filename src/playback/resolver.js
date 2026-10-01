@@ -45,15 +45,29 @@ function embedSource(m,season,episode,startAt=0){
  const tv=m.media_type==='tv',path=tv?'/embed/tv/'+encodeURIComponent(m.id)+'/'+encodeURIComponent(season)+'/'+encodeURIComponent(episode):'/embed/movie/'+encodeURIComponent(m.id);
  return {status:'ready',type:'embed',source:'player',url:vidsrcUrl(path,{autoplay:1,...(Number(startAt)>0?{startAt:Math.max(0,Number(startAt))}:{}),...subtitleParams()}),tmdb_id:m.id,season,episode,title:m.title||m.name||'Movie'};
 }
+async function verifiedEmbedSource(m,season,episode,startAt=0){
+ const tv=m?.media_type==='tv';
+ for(const base of VIDSRC_MIRRORS){
+  try{
+   const path=tv?'/info/tv/'+encodeURIComponent(m.id)+'/'+encodeURIComponent(season)+'/'+encodeURIComponent(episode)+'.json':'/info/movie/'+encodeURIComponent(m.id)+'.json';
+   const r=await fetch(base+path,{cache:'no-store'});
+   if(!r.ok)continue;
+   const info=await r.json();
+   const url=info?.embed_url_tmdb||info?.embed_url;
+   if(url)return {status:'ready',type:'embed',source:'player',url:(startAt>0?url+(url.includes('?')?'&':'?')+'startAt='+encodeURIComponent(startAt):url),tmdb_id:m.id,season,episode,title:m.title||m.name||'Movie'};
+  }catch{}
+ }
+ return embedSource(m,season,episode,startAt);
+}
 export async function resolveMovieSource(m){
  const key='movie:'+m?.id,cached=readCache(key);if(cached)return cached;
- const result=mappedSource(m)||await extractedSource(m)||await archiveDirectSource(m)||embedSource(m);
+ const result=await verifiedEmbedSource(m)||mappedSource(m)||await extractedSource(m)||await archiveDirectSource(m);
  if(result){const out={...result,status:'ready'};writeCache(key,out);return out}
  return {status:'coming-soon',source:null,reason:'Movie playback is not available right now.'};
 }
 export async function resolveEpisodeSource(series,season,episode,startAt=0){
  const key='tv:'+series?.id+':'+season+':'+episode,cached=readCache(key);if(cached)return cached;
- const result=mappedSource(series,season,episode)||await extractedSource(series,season,episode)||embedSource(series,season,episode,startAt);
+ const result=await verifiedEmbedSource(series,season,episode,startAt)||mappedSource(series,season,episode)||await extractedSource(series,season,episode);
  if(result){const out={...result,status:'ready'};writeCache(key,out);return out}
  return {status:'coming-soon',source:null,reason:'Episode playback is not available right now.'};
 }
