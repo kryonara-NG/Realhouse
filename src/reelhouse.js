@@ -563,7 +563,7 @@ async function openFilm(id,title){killPlayer();const tok=cur.tok=(cur.tok||0)+1,
  cur.m={ia:1,id,title:t};cur.film=id;
  box.innerHTML=`<div class="wpg"><div class="wp" id="wp"><div class="poster" style="background-image:url(https://archive.org/services/img/${esc(id)})"></div>${topbar}</div>
  <div class="wi"><h1>${esc(t)}</h1><div class="wm"><span>${esc(one(md.year)||one(md.date).slice(0,4)||'Classic')}</span><span>Free to watch</span></div>
- <div class="acts"><button class="act" data-dl="${esc(id)}" data-t="${esc(t)}">${I.dl}<span>Download</span></button></div>
+ <div class="acts">${isNativeReelhouse()?`<button class="act" data-dl="${esc(id)}" data-t="${esc(t)}" data-native-free="1">${I.dl}<span>Download in app</span></button>`:""}</div>
  <p class="ovw open">${esc(de.slice(0,900))||'No description available.'}</p></div></div>`;
  startFilm(id,t)}
 function wpClick(t){const b=t.closest('button,#sh');if(!b||!yp||!yp.getPlayerState)return false;
@@ -620,7 +620,7 @@ document.addEventListener('click',e=>{const t=e.target;
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
  const pl=t.closest('[data-play]');if(pl){openDetail(pl.dataset.play,'trailer');return}
  const fi=t.closest('[data-ia]');if(fi){openFilm(fi.dataset.ia,fi.dataset.t);return}
- const dl=t.closest('[data-dl]');if(dl&&dl.dataset.dl){download(dl.dataset.dl,dl.dataset.t);return}
+ const dl=t.closest('[data-dl]');if(dl&&dl.dataset.dl){if(dl.dataset.native==='1')startNativeDownload();else if(dl.dataset.nativeFree==='1')toast('This free catalog item is not a native MovieBox download.');return}
  const ns=t.closest('[data-native-share]');if(ns){shareNativeById(ns.dataset.nativeShare);return}
  const no=t.closest('[data-native-open]');if(no){openNativeById(no.dataset.nativeOpen);return}
  const nd=t.closest('[data-native-delete]');if(nd){deleteNativeById(nd.dataset.nativeDelete);return}
