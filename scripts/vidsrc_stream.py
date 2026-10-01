@@ -98,9 +98,11 @@ def extract_stream(
             "Chrome/140.0.0.0 Safari/537.36"
         )
         context = browser.new_context(
-            service_workers="block",
+            service_workers="allow",
             user_agent=user_agent,
             viewport={"width": 1280, "height": 720},
+            ignore_https_errors=True,
+            permissions=["autoplay"],
         )
 
         def add(url: str, discovered_by: str, referer: str = "", content_type: str = "") -> None:
@@ -143,25 +145,34 @@ def extract_stream(
         context.on("response", on_response)
 
         page = context.new_page()
+        page.on("console", lambda msg: print("[console:{}] {}".format(msg.type, msg.text)) if msg.type in {"error", "warning"} else None)
+        page.on("pageerror", lambda err: print("[pageerror] {}".format(err)))
         page.goto(player_url, wait_until="domcontentloaded", timeout=30_000)
 
         deadline = time.monotonic() + timeout_ms / 1000
+        page.wait_for_timeout(2500)
 
-        # Give dynamic players a chance to initialise, then inspect every frame.
+        # Initialize the player using normal user-facing controls and observe all frames.
         while time.monotonic() < deadline and not captured:
             pages = list(context.pages)
             for current in pages:
                 for frame in list(current.frames):
                     inspect_frame(frame, player_url, allowed_hosts, add)
-            try:
-                page.locator("video").first.click(timeout=500)
-            except Exception:
-                pass
-            try:
-                page.locator("button").first.click(timeout=500)
-            except Exception:
-                pass
-            page.wait_for_timeout(750)
+                for label in ("Play", "Watch", "Start", "Continue"):
+                    try:
+                        current.get_by_role("button", name=re.compile(label, re.I)).first.click(timeout=700)
+                        break
+                    except Exception:
+                        pass
+                try:
+                    current.locator("video").first.click(timeout=700)
+                except Exception:
+                    pass
+                try:
+                    current.mouse.click(640, 360)
+                except Exception:
+                    pass
+            page.wait_for_timeout(1000)
 
         # One final DOM/script pass even if network capture already found a source.
         for current in list(context.pages):
