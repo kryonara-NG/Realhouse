@@ -558,15 +558,19 @@ function mountPlayerEmbed(url,title,source={}){
 
 async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
- if(startAfterResolve){mount('<div class="source-loading"><div class="source-loader"></div><strong>Loading movie…</strong></div>')}
+ if(!$('#src [data-src="trailer"]'))$('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="trailer">Trailer</button>');
+ if(!$('#src [data-src="film"]'))$('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="film" disabled>Full movie</button>');
+ if(startAfterResolve)mount('<div class="source-loading"><div class="source-loader"></div><strong>Loading movie…</strong></div>');
  let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
  if(cur.m!==m)return;
+ const full=$('#src [data-src="film"]');
  if(source.status!=='ready'){
+   if(full)full.disabled=true;
    if(startAfterResolve)showErr('This movie could not be played right now.');
    return;
  }
  cur.source=source;cur.film=source.identifier||null;
- $('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="trailer">Trailer</button><button class="chip" data-src="film">Full movie</button>');
+ if(full){full.disabled=false;full.classList.add('on')}
  const d=$('#dlb');
  if(d&&source.identifier){d.hidden=false;d.dataset.dl=source.identifier;d.dataset.t=m.title}
  const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`);
