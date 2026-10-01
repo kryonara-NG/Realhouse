@@ -243,17 +243,17 @@ body{padding-bottom:100px}
 /* Expanded catalog + playback fallback controls */
 .catalog-row .sc{min-height:260px}
 .home-infinite-sentinel{min-height:180px;display:grid;place-items:center;padding:48px 20px;color:var(--mute);font-size:12px;letter-spacing:.04em;text-align:center}
-.player-source-bar{position:absolute;z-index:8;left:18px;right:18px;bottom:62px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);background:var(--bg);color:var(--mute);font-size:11px}
-.player-source-bar .chip{font-size:10px;padding:5px 8px}
-.player-source-bar .chip.on{background:var(--ink);color:var(--bg)}
-#vidsrc-frame{position:relative;z-index:2;width:100%;height:100%;min-height:420px;border:0;background:#000}
+.reelhouse-player-shell{position:relative;width:100%;aspect-ratio:16/9;min-height:0;background:#000;overflow:hidden;isolation:isolate;border-radius:0}
+.vidsrc-frame-wrap{position:absolute;inset:0;width:100%;height:100%;background:#000;overflow:hidden}
+#vidsrc-frame{display:block;position:absolute;inset:0;width:100%;height:100%;min-height:0;border:0;background:#000}
+.reelhouse-player-shell .player-progress{position:absolute;z-index:6;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.16);pointer-events:none}
+.reelhouse-player-shell .player-progress span{display:block;width:0;height:100%;background:#fff;transition:width .25s linear}
+.reelhouse-player-shell .player-meta{position:absolute;z-index:7;left:14px;top:14px;display:flex;align-items:center;gap:8px;max-width:calc(100% - 28px);padding:8px 10px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;backdrop-filter:blur(10px);pointer-events:auto}
+.reelhouse-player-shell .player-meta>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:700px){
- .player-source-bar{left:10px;right:10px;bottom:54px;overflow-x:auto;flex-wrap:nowrap;white-space:nowrap}
- .catalog-row .sc{min-height:220px}
- .home-infinite-sentinel{min-height:120px}
+ .reelhouse-player-shell{width:100%;aspect-ratio:16/9}
+ .reelhouse-player-shell .player-meta{left:9px;top:9px;font-size:11px}
 }
-
-
 /* Native direct-stream player: one stable surface for MP4/HLS sources. */
 .native-player{position:relative;width:100%;height:100%;min-height:420px;background:#000;overflow:hidden;isolation:isolate}
 .native-player video{display:block;width:100%;height:100%;min-height:420px;max-height:78vh;object-fit:contain;background:#000}
