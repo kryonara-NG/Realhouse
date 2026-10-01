@@ -91,9 +91,9 @@ function card(x) {
   return `
     <div class="rh-free-direct-card">
       <a class="card" tabindex="0" role="button" data-ia="${id}" data-t="${title}">
-        <i class="f">DIRECT</i>
+        <i class="f">FREE</i>
         <img loading="lazy" decoding="async" src="https://archive.org/services/img/${id}" alt="">
-        <div class="m"><b>${title}</b><span>${year} · Free file</span></div>
+        <div class="m"><b>${title}</b><span>${year} · Free movie</span></div>
       </a>
       <button class="rh-free-direct-trailer" type="button" data-free-trailer="${id}" data-free-title="${title}">Trailer</button>
     </div>`;
@@ -151,7 +151,7 @@ async function playTrailer(id, title) {
   const label = document.getElementById('rh-free-direct-title');
   const meta = document.getElementById('rh-free-direct-meta');
   label.textContent = title || 'Trailer';
-  meta.textContent = 'Looking for a trailer/preview file in the same Internet Archive item…';
+  meta.textContent = 'Loading trailer…';
   modal.hidden = false;
 
   try {
@@ -160,14 +160,14 @@ async function playTrailer(id, title) {
     const d = await r.json();
     const url = pickTrailer(d);
     if (!url) {
-      meta.textContent = 'No separate trailer file was published with this title. You can close this and play the full direct movie.';
+      meta.textContent = 'Trailer unavailable. You can play the full movie instead.';
       return;
     }
     video.src = url;
-    meta.textContent = 'Trailer/preview file from the same archive item.';
+    meta.textContent = 'Trailer';
     await video.play().catch(() => {});
   } catch {
-    meta.textContent = 'The trailer could not be loaded. The full movie may still be available.';
+    meta.textContent = 'Trailer unavailable. The full movie may still be available.';
   }
 }
 
@@ -185,13 +185,8 @@ async function render() {
     section.id = 'rh-free-direct-section';
     section.className = 'row';
     section.innerHTML = `
-      <h2>100 free direct movies</h2>
-      <p class="rh-free-direct-note">
-        Direct video files from Internet Archive items whose indexed metadata declares
-        Public Domain or a Creative Commons license. This bypasses VidSrc. Availability
-        and rights metadata can change, so verify the item license before commercial redistribution.
-      </p>
-      <div class="rw">
+      <h2>Free movies</h2>
+        <div class="rw">
         <button class="arr l" aria-label="Scroll left">‹</button>
         <div class="sc" id="rh-free-direct-sc"><div class="sk"></div></div>
         <button class="arr r" aria-label="Scroll right">›</button>
