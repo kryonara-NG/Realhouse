@@ -1,4 +1,5 @@
 import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
+import { API_BASE } from './config.js';
 import { registerPlugin } from '@capacitor/core';
 import Hls from 'hls.js';
 import { isNativeReelhouse, canDownloadNativeSource, downloadNativeMovie, getNativeDownloads, shareNativeDownload, deleteNativeDownload, openNativeDownload, makeCalendarEvent } from './native/downloads.js';
