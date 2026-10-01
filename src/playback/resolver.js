@@ -52,11 +52,14 @@ function normalizeMovieBoxResult(payload,m,season,episode){
  return null;
 }
 async function movieBoxSource(m,season,episode){
- if(!MOVIEBOX_BASE||!m?.id)return null;
- const tv=m.media_type==='tv';
- const path=tv?'/stream/tv/'+encodeURIComponent(m.id)+'/'+encodeURIComponent(season)+'/'+encodeURIComponent(episode):'/stream/movie/'+encodeURIComponent(m.id);
+ const base=MOVIEBOX_BASE||'/api/moviebox';
+ if(!m?.title&&!m?.name)return null;
+ const title=m.title||m.name;
+ const qs=new URLSearchParams({title});
+ if(m.release_date)qs.set('year',String(m.release_date).slice(0,4));
+ if(m.media_type==='tv'){qs.set('season',String(season||1));qs.set('episode',String(episode||1))}
  try{
-  const r=await fetch(MOVIEBOX_BASE+path,{cache:'no-store',headers:{Accept:'application/json'}});
+  const r=await fetch(base+'/stream?'+qs.toString(),{cache:'no-store',headers:{Accept:'application/json'}});
   if(!r.ok)return null;
   return normalizeMovieBoxResult(await r.json(),m,season,episode);
  }catch{return null}
