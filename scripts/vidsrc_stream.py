@@ -82,6 +82,7 @@ def extract_stream(
     timeout_ms: int = 12_000,
     headed: bool = False,
     iframe_depth: int = 2,
+    allow_discovered_media_hosts: bool = False,
 ) -> Optional[dict]:
     captured: list[dict] = []
     seen: set[str] = set()
@@ -103,8 +104,14 @@ def extract_stream(
         )
 
         def add(url: str, discovered_by: str, referer: str = "", content_type: str = "") -> None:
-            if not allowed_url(url, allowed_hosts) or url in seen:
+            if url in seen:
                 return
+            # Media may be delivered by a CDN host different from the authorized
+            # player host. When explicitly enabled, accept only recognized media
+            # URLs; never broaden capture to arbitrary requests.
+            if not allowed_url(url, allowed_hosts):
+                if not allow_discovered_media_hosts or not media_type(url, content_type):
+                    return
             item = normalise_source(
                 url,
                 "network",
@@ -222,6 +229,11 @@ def main() -> int:
     parser.add_argument("player_url", nargs="?", help="Full authorized player/embed URL.")
     parser.add_argument("--base-url", default="https://vidsrcme.ru", help="Authorized player base URL.")
     parser.add_argument("--allowed-host", action="append", default=[], help="Allowed media/player host; repeatable.")
+    parser.add_argument(
+        "--allow-discovered-media-hosts",
+        action="store_true",
+        help="Allow recognized media URLs served by a CDN host discovered from the authorized player.",
+    )
     parser.add_argument("--media-key", help="movie:ID or tv:ID:SEASON:EPISODE.")
     parser.add_argument("--streams-file", default="public/vidsrc-streams.json")
     parser.add_argument("--timeout-ms", type=int, default=12_000)
@@ -253,6 +265,7 @@ def main() -> int:
         timeout_ms=max(1000, args.timeout_ms),
         headed=args.headed,
         iframe_depth=max(0, args.iframe_depth),
+        allow_discovered_media_hosts=args.allow_discovered_media_hosts,
     )
     if not stream:
         print("[-] No playable direct media manifest/file was observed.")
