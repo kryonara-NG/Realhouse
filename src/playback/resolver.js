@@ -1,4 +1,4 @@
-const CACHE_PREFIX='rh:resolver:v4:';
+const CACHE_PREFIX='rh:resolver:v5:';
 const CACHE_TTL=30*60*1000;
 
 function readCache(key){
@@ -104,12 +104,10 @@ export async function resolveMovieSource(m){
   if(extracted){const result={...extracted,status:'ready'};writeCache(key,result);return result;}
   const mapped=mappedSource(m);
   if(mapped){const result={...mapped,status:'ready'};writeCache(key,result);return result;}
-  const found=await findAvailableMovie(m);
-  if(!found)return {status:'coming-soon',source:null,reason:'VidSrc reports this title is unavailable.'};
-  const progress=Number(globalThis.REELHOUSE_PROGRESS?.[m?.id]||0);
-  const params={...subtitleParams(),autoplay:1,...(progress>0?{startAt:Math.max(0,progress)}:{})};
-  const result={status:'ready',type:'vidsrc',source:'vidsrc',url:found.base+`/embed/movie/${encodeURIComponent(found.id)}?${new URLSearchParams(params).toString()}`,tmdb_id:m.id,imdb_id:found.info.imdb_id||null,title:m.title||m.name||'Movie',quality:found.info.quality||null};
-  writeCache(key,result);return result;
+  // Do not turn an unresolved title into an iframe source.
+  // The UI is intentionally direct-media-only.
+  return {status:'coming-soon',source:null,reason:'No extracted or configured direct video is available.'};
+
 }
 export async function resolveEpisodeSource(series,season,episode,startAt=0){
   const key=`tv:${series?.id}:${season}:${episode}`;
@@ -118,11 +116,8 @@ export async function resolveEpisodeSource(series,season,episode,startAt=0){
   if(extracted){const result={...extracted,status:'ready'};writeCache(key,result);return result;}
   const mapped=mappedSource(series,season,episode);
   if(mapped){const result={...mapped,status:'ready'};writeCache(key,result);return result;}
-  const found=await findAvailableEpisode(series,season,episode);
-  if(!found)return {status:'coming-soon',source:null,reason:'VidSrc reports this episode is unavailable.'};
-  const params={...subtitleParams(),autoplay:1,autonext:1,...(Number(startAt)>0?{startAt:Math.max(0,Number(startAt))}:{})};
-  const result={status:'ready',type:'vidsrc',source:'vidsrc',url:found.base+`/embed/tv/${encodeURIComponent(found.id)}/${encodeURIComponent(season)}/${encodeURIComponent(episode)}?${new URLSearchParams(params).toString()}`,tmdb_id:series.id,imdb_id:found.info.imdb_id||null,season:Number(season),episode:Number(episode),title:series?.name||series?.title||'Series',quality:found.info.quality||null};
-  writeCache(key,result);return result;
+  return {status:'coming-soon',source:null,reason:'No extracted or configured direct video is available.'};
+
 }
 export function clearResolverCache(){
   try{Object.keys(localStorage).filter(k=>k.startsWith('rh:resolver:')).forEach(k=>localStorage.removeItem(k))}catch{}
