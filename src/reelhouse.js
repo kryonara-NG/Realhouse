@@ -491,31 +491,6 @@ function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove(
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
 async function startTrailer(){if(cur.source)startFilm(cur.source,titleOf(cur.m));else filmBtns(cur.m,true)}
 function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'');return h.includes('vidsrc')?('Source '+(i+1)):h}catch{return 'Source '+(i+1)}}
-function mountVidSrc(source,title){
- const w=$('#wp');if(!w)return;
- const u=source?.url;if(!u)return;
- w.innerHTML=`<div class="reelhouse-player-shell"><div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-progress" id="playerProgress"><span id="playerProgressFill"></span></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><div class="vidsrc-frame-wrap"><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" scrolling="no" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>${topbar}</div>`;
- const onMessage=e=>{
-   const frame=$('#vidsrc-frame');if(!frame||e.source!==frame.contentWindow)return;
-   let frameOrigin='';try{frameOrigin=new URL(frame.src).origin}catch{}
-   if(frameOrigin&&e.origin!==frameOrigin)return;
-   const d=e.data;
-   if(!d||d.type!=='PLAYER_EVENT'||!d.data)return;
-   const info=d.data.player_info||{};
-   const id=info.tmdb||info.imdb||cur.m?.id;
-   const progress=Number(d.data.player_progress);
-   if(id&&Number.isFinite(progress)){S.prog[id]=progress;store.set('prog',S.prog)}
-   if(d.data.player_status==='completed'&&id){S.prog[id]=0;store.set('prog',S.prog);addInbox({key:'finished:'+id,title:'Finished watching',body:title+' is complete. See what to watch next.',url:'#/home'})}
-   const duration=Number(d.data.player_duration)||0;
-   const pct=duration>0&&Number.isFinite(progress)?Math.min(100,Math.max(0,progress/duration*100)):0;
-   const line=$('#playerProgressFill');if(line)line.style.width=pct+'%';
- };
- window.addEventListener('message',onMessage);
- cur.vidsrcCleanup=()=>window.removeEventListener('message',onMessage);
- const frame=$('#vidsrc-frame');
- if(frame)frame.addEventListener('load',()=>spin(0),{once:true});
- remember(cur.m);
-}
 function mountNativeVideo(url,title,source={}){
  const w=$('#wp');if(!w||!url)return;
  const safeTitle=title||'Now playing';
@@ -557,20 +532,12 @@ async function startFilm(source,title){
    mountNativeVideo(source.url,title,source);return;
  }
 
- if(source?.type==='vidsrc'||source?.type==='iframe'){
-   const raw=source.url;
-   try{
-     const u=new URL(raw);const subs=subtitleQuery();if(subs)u.searchParams.set('ds_lang',subs);
-     mountVidSrc({...source,url:u.toString()},title);
-   }catch{mountVidSrc(source,title)}
-   return;
- }
-
+ // Never fall back to a VidSrc iframe. Direct media must play in Reelhouse's own player.
  mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
  if(!$('#wp'))return;
- if(!u)return showErr('This title is marked Coming to Reelhouse soon because no playable direct file is available.');
+ if(!u)return showErr('No direct video file is available for this title yet.');
  mountNativeVideo(u,title,typeof source==='object'?source:{});
 }
 
@@ -727,19 +694,7 @@ document.addEventListener('click',e=>{
  const n=t.closest('[data-notification-key]');if(n){store.set(INBOX_KEY,inbox().map(x=>x.key===n.dataset.notificationKey?{...x,read:true}:x));renderNotificationBadge();closeNotifications();if(n.dataset.notificationUrl)location.hash=n.dataset.notificationUrl;return}
  if(t.closest('[data-welcome-close],[data-welcome-enter]')){closeWelcome();return}
  if(t.closest('[data-player-cinema]')){const wp=$('#wp');wp?.classList.toggle('cinema-focus');return}
- if(t.closest('[data-vidsrc-mirror]')){
-   const mirror=t.closest('[data-vidsrc-mirror]').dataset.vidsrcMirror;
-   const frame=$('#vidsrc-frame');
-   if(frame&&mirror){
-     try{
-       const u=new URL(frame.src);u.protocol='https:';u.host=new URL(mirror).host;
-       const next={...cur.source,url:u.toString()};
-       cur.source=next;
-       mountVidSrc(next,titleOf(cur.m||{}));
-     }catch{}
-   }
-   return;
- }
+
 });
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REELHOUSE_NOTIFICATION_CLICK'){const u=e.data.url||'#/home';location.hash=u;closeNotifications()}});
 let notifTimer=null;
