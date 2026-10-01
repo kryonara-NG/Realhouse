@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "deploy:cloudflare": "wrangler pages deploy",
+    "deploy:cloudflare": "wrangler pages deploy dist",
     "preview": "vite preview",
     "cap:sync": "npm run build && cap sync",
     "cap:add:android": "cap add android",
