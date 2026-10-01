@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "python -m py_compile main.py moviebox_internal.py"
+  }
+}
