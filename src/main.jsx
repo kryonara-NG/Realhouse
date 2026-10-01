@@ -14,12 +14,41 @@ function ReelhouseShell() {
       document.documentElement.classList.remove("app-booting");
       setTimeout(() => splash?.remove(), 650);
     };
-    mountReelhouse();
-    mountFreeDirectCatalog();
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
-    const t = setTimeout(hideSplash, 700);
+    const reportBootFailure = (error) => {
+      console.error("[Reelhouse boot]", error);
+      const view = document.getElementById("view");
+      if (view && !view.innerHTML.trim()) {
+        view.innerHTML = '<div class="pg"><div class="empty"><b>Reelhouse could not finish starting.</b><br><small>Refresh once. If this keeps happening, the app will show the diagnostic details in the browser console.</small></div></div>';
+      }
+      hideSplash();
+    };
+
+    try {
+      mountReelhouse();
+    } catch (error) {
+      reportBootFailure(error);
+    }
+
+    try {
+      mountFreeDirectCatalog();
+    } catch (error) {
+      console.error("[Reelhouse free catalog]", error);
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(error => console.warn("[Reelhouse SW]", error));
+    }
+
+    const t = setTimeout(hideSplash, 1200);
     window.addEventListener("load", hideSplash, { once: true });
-    return () => { clearTimeout(t); window.removeEventListener("load", hideSplash); };
+    window.addEventListener("error", reportBootFailure, { once: true });
+    window.addEventListener("unhandledrejection", event => reportBootFailure(event.reason), { once: true });
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("load", hideSplash);
+      window.removeEventListener("error", reportBootFailure);
+    };
   }, []);
 
   return (
