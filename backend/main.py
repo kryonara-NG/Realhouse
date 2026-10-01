@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import json
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -39,7 +39,8 @@ def _tmdb_token():
 
 
 @app.get("/api/tmdb/{path:path}")
-def tmdb_proxy(path: str, request_query: str = ""):
+def tmdb_proxy(path: str, request: FastAPIRequest):
+    request_query = request.url.query
     """Proxy public TMDB v3 GET requests so the browser never needs the token."""
     token = _tmdb_token()
     if not token:
