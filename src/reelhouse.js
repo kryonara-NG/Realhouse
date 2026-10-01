@@ -426,7 +426,7 @@ function app(){
 }
 /* ---------- me, accounts, settings ---------- */
 const ic=p=>`<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
-const ICO={recent:ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),dl:ic('<path d="M12 4v11m-5-5l5 5 5-5M5 20h14"/>'),set:ic('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>')};
+const ICO={recent:ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),dl:ic('<path d="M12 4v11m-5-5l5 5 5-5M5 20h14"/>'),set:ic('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'),bell:ic('<path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>')};
 const back=`<a class="chip" href="#/me">${I.l} Me</a>`;
 function me(sub){const on=session&&acct;
  if(sub==='recent'){const L=lists.recent;return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Recently watched</h1><div class="grid">${L.map(rc).join('')}</div>${L.length?'':'<p class="empty">Trailers and films you play show up here.</p>'}</div>`}
@@ -437,6 +437,7 @@ function me(sub){const on=session&&acct;
  view.innerHTML=`<div class="pg">${head}<div class="st"><div><b>${lists.list.length}</b>Saved</div><div><b>${lists.fav.length}</b>Favorites</div><div><b>${lists.recent.length}</b>Watched</div></div>
  <a class="mi" href="#/me/recent">${ICO.recent}<span>Recently watched<small>Pick up where you stopped</small></span><em>${I.r}</em></a>
  <a class="mi" href="#/me/settings">${ICO.set}<span>Settings<small>Theme and playback</small></span><em>${I.r}</em></a>
+ <button class="mi" data-open-notifications>${ICO.bell}<span>Notifications<small>Movie and Reelhouse updates</small></span><em>${I.r}</em></button>
  <a class="mi" href="#/app">${ICO.dl}<span>Download App<small>Get the latest Reelhouse Android app</small></span><em>${I.r}</em></a>
  ${on?'<button class="mi" data-act="out"><span>Log out</span></button>':''}</div>`}
 const sha=async s=>{try{return[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return btoa(s)}};
@@ -688,6 +689,7 @@ renderNotificationBadge();
 openWelcome();
 document.addEventListener('click',e=>{
  const t=e.target;
+ if(t.closest('[data-open-notifications]')){openNotifications();return}
  if(t.closest('#notifBell')){openNotifications();return}
  if(t.closest('[data-notifications-close]')){closeNotifications();return}
  if(t.closest('[data-notifications-clear]')){store.set(INBOX_KEY,inbox().map(x=>({...x,read:true})));renderNotificationBadge();openNotifications();return}
