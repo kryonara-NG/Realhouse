@@ -1,4 +1,4 @@
-const CACHE_PREFIX='rh:resolver:v5:';
+const CACHE_PREFIX='rh:resolver:v6:';
 const CACHE_TTL=30*60*1000;
 
 function readCache(key){
