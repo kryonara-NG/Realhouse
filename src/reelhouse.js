@@ -544,12 +544,16 @@ async function startFilm(source,title){
 
 async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
+ if(startAfterResolve){
+   mount(`<div class="source-loading"><div class="source-loader"></div><strong>Finding a direct video source…</strong><span>Reelhouse is resolving the source in the background.</span></div>`);
+ }
  $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
  let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
- if(cur.m!==m||!$('#src'))return;
+ if(cur.m!==m)return;
  const st=$('#sourceStatus');
  if(source.status!=='ready'){
-   if(st){st.className='source-state coming';st.textContent='Coming to Reelhouse soon'}
+   if(st){st.className='source-state coming';st.textContent='Direct source unavailable'}
+   if(startAfterResolve)showErr('A playable direct video source could not be resolved for this title.');
    return;
  }
  cur.source=source;cur.film=source.identifier||null;
