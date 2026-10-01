@@ -461,6 +461,69 @@ const spin=on=>{const e=$('#spin');if(e)e.classList.toggle('on',!!on)};
 const setSrc=k=>{cur.mode=k;document.querySelectorAll('#src [data-src]').forEach(b=>b.classList.toggle('on',b.dataset.src===k))};
 function wake(){const w=$('#wp .custom-player')||$('#wp');if(!w)return;w.classList.remove('idle');clearTimeout(idle);idle=setTimeout(()=>{if(yp&&yp.getPlayerState&&yp.getPlayerState()===1)w.classList.add('idle')},2600)}
 function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState();s===1?yp.pauseVideo():(s===0?yp.seekTo(0):yp.playVideo())}
+function mountNativeVideo(url,title,source={}){
+ const w=$('#wp');if(!w)return;
+ killPlayer();
+ const type=source?.type||mediaTypeFromUrl(url)||'mp4';
+ const safeTitle=esc(title||'Reelhouse');
+ const poster=cur.m?.backdrop_path?IMG+'w1280'+cur.m.backdrop_path:(cur.m?.poster_path?IMG+'w780'+cur.m.poster_path:'');
+ w.innerHTML=`<div class="custom-player native-player" aria-label="${safeTitle}"><video id="vd" playsinline preload="metadata" controlslist="nodownload" disablepictureinpicture=${poster?` poster="${esc(poster)}"`:''}></video></div>`+ctl;
+ w.classList.remove('idle');
+ const v=$('#vd');
+ if(!v)return showErr('The native video element could not be created.');
+ v.title=safeTitle;
+ pm=cur.m||null;
+ let cleaned=false;
+ const cleanup=()=>{
+  if(cleaned)return;
+  cleaned=true;
+  ['loadedmetadata','timeupdate','play','pause','waiting','canplay','error','ended'].forEach(ev=>v.removeEventListener(ev,events[ev]));
+ };
+ const events={
+  loadedmetadata:()=>{spin(0);updatePlayerUI();const saved=pm?.id?Number(S.prog[pm.id]||0):0;if(saved>5&&saved<v.duration-10)showResumePrompt(saved)},
+  timeupdate:updatePlayerUI,
+  play:()=>{setPP(1);wake()},
+  pause:()=>{setPP(2)},
+  waiting:()=>spin(1),
+  canplay:()=>spin(0),
+  error:()=>{spin(0);const code=v.error?.code;showErr(code===4?'This video format is not supported by this browser.':'The native video stream could not be played.')},
+  ended:()=>{setPP(0);spin(0);saveProg();showNextUp()}
+ };
+ Object.entries(events).forEach(([ev,fn])=>v.addEventListener(ev,fn));
+ cur.vidsrcCleanup=cleanup;
+ if(type==='hls'){
+  if(v.canPlayType('application/vnd.apple.mpegurl')){
+   v.src=url;
+  }else if(Hls.isSupported()){
+   const config={enableWorker:true};
+   const headers=source?.headers||{};
+   if(Object.keys(headers).length){
+    config.xhrSetup=(xhr)=>{for(const [k,val] of Object.entries(headers)){if(val!=null&&val!=='')xhr.setRequestHeader(k,String(val))}};
+   }
+   const hls=new Hls(config);
+   cur.hls=hls;
+   hls.on(Hls.Events.ERROR,(_,data)=>{
+    if(data?.fatal){
+     if(data.type===Hls.ErrorTypes.NETWORK_ERROR)hls.startLoad();
+     else if(data.type===Hls.ErrorTypes.MEDIA_ERROR)hls.recoverMediaError();
+     else showErr('The HLS stream could not be played.');
+    }
+   });
+   hls.loadSource(url);
+   hls.attachMedia(v);
+  }else{
+   cleanup();
+   return showErr('HLS playback is not supported by this browser.');
+  }
+ }else{
+  v.src=url;
+ }
+ v.volume=.8;
+ v.addEventListener('loadedmetadata',()=>spin(0),{once:true});
+ const playAttempt=v.play();
+ if(playAttempt?.catch)playAttempt.catch(()=>{});
+ wake();
+}
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open trailer</a>`:''}</div>`;e.classList.add('on')}
