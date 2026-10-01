@@ -492,7 +492,7 @@ function closeDetail(){killPlayer();cur.tok=(cur.tok||0)+1;const b=$('#modal');b
 const setPP=s=>{const b=$('#pp');if(b)b.innerHTML=s===1?I.pause:s===0?I.replay:I.play};
 const spin=on=>{const e=$('#spin');if(e)e.classList.toggle('on',!!on)};
 const setSrc=k=>{cur.mode=k;document.querySelectorAll('#src [data-src]').forEach(b=>b.classList.toggle('on',b.dataset.src===k))};
-function wake(){const w=$('#wp');if(!w)return;w.classList.remove('idle');clearTimeout(idle);idle=setTimeout(()=>{if(yp&&yp.getPlayerState&&yp.getPlayerState()===1)w.classList.add('idle')},2600)}
+function wake(){const w=$('#wp .custom-player')||$('#wp');if(!w)return;w.classList.remove('idle');clearTimeout(idle);idle=setTimeout(()=>{if(yp&&yp.getPlayerState&&yp.getPlayerState()===1)w.classList.add('idle')},2600)}
 function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState();s===1?yp.pauseVideo():(s===0?yp.seekTo(0):yp.playVideo())}
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
@@ -704,7 +704,7 @@ modal.addEventListener('click',e=>{
  if(t.closest('#fs')){const target=$('#wp .custom-player');if(!document.fullscreenElement)target?.requestFullscreen?.();else document.exitFullscreen?.();return}
  if(t.closest('#playerCinema')){$('#wp .custom-player')?.classList.toggle('cinema-mode');return}
  if(t.closest('#playerLock')){$('#wp .custom-player')?.classList.toggle('controls-locked');return}
- if(t.closest('#playerSleep')){const mins=[0,15,30,60],curM=Number(localStorage.getItem('rh:sleep')||0),next=mins[(mins.indexOf(curM)+1)%mins.length];localStorage.setItem('rh:sleep',String(next));toast(next?'Sleep timer: '+next+' min':'Sleep timer off');if(next){clearTimeout(cur.sleep);cur.sleep=setTimeout(()=>{yp?.pauseVideo();toast('Sleep timer paused playback')},next*60000)}return}
+ if(t.closest('#playerSleep')){const mins=[0,15,30,60],curM=Number(localStorage.getItem('rh:sleep')||0),next=mins[(mins.indexOf(curM)+1)%mins.length];localStorage.setItem('rh:sleep',String(next));clearTimeout(cur.sleep);toast(next?'Sleep timer: '+next+' min':'Sleep timer off');if(next){cur.sleep=setTimeout(()=>{yp?.pauseVideo();toast('Sleep timer paused playback')},next*60000)}return}
  if(t.closest('[data-resume]')){const card=t.closest('.resume-card'),at=Number(card?.dataset.resumeAt||0);if(yp&&at)yp.seekTo(at,true);card?.remove();return}
  if(t.closest('[data-start-over]')){if(yp){yp.seekTo(0,true);yp.playVideo()};t.closest('.resume-card')?.remove();return}
  if(t.closest('[data-player-close]')){closeDetail();return}
