@@ -3,10 +3,12 @@ import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import { mountReelhouse } from "./reelhouse";
 import "./style.css";
+import { mountFreeDirectCatalog } from "./freeCatalog.js";
 
 function ReelhouseShell() {
   useEffect(() => {
     mountReelhouse();
+    mountFreeDirectCatalog();
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
 
