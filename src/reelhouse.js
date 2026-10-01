@@ -472,6 +472,7 @@ function mountNativeVideo(url,title,source={}){
  const v=$('#vd');
  if(!v)return showErr('The native video element could not be created.');
  v.title=safeTitle;
+ yp=vAdapter(v);
  pm=cur.m||null;
  let cleaned=false;
  const cleanup=()=>{
