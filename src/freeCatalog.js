@@ -37,8 +37,7 @@ async function searchArchive(query, rows = 150) {
   u.searchParams.set('q', query);
   ['identifier','title','year','date','description','creator','licenseurl','rights','downloads'].forEach(f => u.searchParams.append('fl[]', f));
   u.searchParams.set('rows', String(rows));
-  u.searchParams.append('sort[]', 'downloads');
-  u.searchParams.append('sort[]', 'asc');
+  u.searchParams.set('sort[]', 'downloads asc');
   u.searchParams.set('output', 'json');
   const r = await fetch(u.href);
   if (!r.ok) throw new Error('Internet Archive search failed: ' + r.status);
