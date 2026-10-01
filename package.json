@@ -10,7 +10,8 @@
     "cap:sync": "npm run build && cap sync",
     "cap:add:android": "cap add android",
     "cap:open:android": "cap open android",
-    "cap:build:android": "npm run cap:sync && cap build android"
+    "cap:build:android": "npm run cap:sync && cap build android",
+    "catalog:import": "python scripts/import_scrapper.py"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.2",
