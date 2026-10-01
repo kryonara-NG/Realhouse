@@ -78,18 +78,6 @@ function ReelhouseShell() {
       <div className="ov" id="modal" />
       <div className="ov" id="sheet" />
       <div className="ov" id="notifications" aria-hidden="true" />
-      <div className="independence-modal" id="independenceModal" aria-hidden="true">
-        <div className="independence-backdrop" data-independence-close />
-        <section className="independence-card" role="dialog" aria-modal="true" aria-labelledby="independenceTitle">
-          <button className="independence-close" data-independence-close aria-label="Close celebration">×</button>
-          <div className="independence-confetti" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div>
-          <div className="independence-flag" aria-hidden="true"><span/><span/><span/></div>
-          <p className="welcome-kicker">OCTOBER 1 · NIGERIA</p>
-          <h2 id="independenceTitle">Happy Independence Day 🇳🇬</h2>
-          <p>Lights down, movie on. Enjoy something worth watching today.</p>
-          <button className="btn pri" data-independence-close>Start watching</button>
-        </section>
-      </div>
       <div className="welcome-modal" id="welcomeModal" aria-hidden="true">
         <div className="welcome-backdrop" data-welcome-close />
         <section className="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
