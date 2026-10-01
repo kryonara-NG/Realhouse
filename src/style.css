@@ -270,3 +270,8 @@ body{padding-bottom:100px}
 .notif-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:auto;margin-right:8px;border-radius:999px;background:#fff;color:#000;font:700 10px/1 system-ui,sans-serif}
 [data-theme="dark"] .notif-badge{background:#fff;color:#000}
 @media(max-width:700px){.embedded-player,.trailer-player,.embedded-player iframe,.trailer-player iframe{min-height:58vw}}
+
+.player-exit{height:48px;display:flex;align-items:center;background:#000;color:#fff;overflow:hidden}.player-exit .top{position:static!important;inset:auto!important}.player-exit .ib{color:#fff}
+.player-exit+.embedded-player,.player-exit+.trailer-player{height:calc(100% - 48px);min-height:0}
+.player-exit+.embedded-player iframe,.player-exit+.trailer-player iframe{min-height:0;height:100%}
+@media(max-width:700px){.player-exit+.embedded-player,.player-exit+.trailer-player{height:calc(100% - 42px)}.player-exit{height:42px}}
