@@ -527,9 +527,9 @@ function mountNativeVideo(url,title,source={}){
      cur.hls.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal){try{cur.hls.destroy()}catch{}cur.hls=null;showErr('The video stream could not be played.') }});
    }else{showErr('This browser cannot play this video stream.');return}
  }else{v.src=url}
- yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source?.tmdb_id||source?.url||'player'};v.volume=.8;
+ yp=vAdapter(v);pm={id:source?.progressKey||cur.m?.id||source?.id||source?.tmdb_id||source?.url||'player'};v.volume=.8;
  const t=Number(S.prog[pm.id]||0);
- if(t>8)v.addEventListener('loadedmetadata',()=>{try{v.currentTime=Math.min(t,Math.max(0,(v.duration||t)-2));showResumePrompt(t)}catch{}},{once:true});
+ if(t>8)v.addEventListener('loadedmetadata',()=>{try{showResumePrompt(t)}catch{}},{once:true});
  const save=()=>{if(pm?.id&&Number.isFinite(v.currentTime)){const d=v.duration||0;S.prog[pm.id]=d&&v.currentTime/d>.96?0:v.currentTime;store.set('prog',S.prog);if(cur.m)remember(cur.m)}};
  v.addEventListener('timeupdate',save,{passive:true});
  v.addEventListener('loadedmetadata',()=>updatePlayerUI(),{once:true});
@@ -546,7 +546,7 @@ function mountNativeVideo(url,title,source={}){
 
 function showResumePrompt(t){
  const shell=$('#wp .custom-player');if(!shell||shell.querySelector('.resume-card'))return;
- const card=document.createElement('div');card.className='resume-card';card.innerHTML=`<b>Continue watching?</b><span>Resume at ${fmt(t)}</span><div><button class="btn pri" data-resume>${I.play} Continue</button><button class="btn" data-start-over>Start over</button></div>`;
+ const card=document.createElement('div');card.className='resume-card';card.innerHTML=`<b>Continue watching?</b><span>Resume at ${fmt(t)}</span><div><button class="btn pri" data-resume>${I.play} Continue</button><button class="btn" data-start-over>Start over</button></div>`;card.dataset.resumeAt=String(t);
  shell.appendChild(card);setTimeout(()=>card.classList.add('on'),60);setTimeout(()=>card.remove(),9000);
 }
 function populateQualityMenu(){
@@ -649,7 +649,7 @@ async function playEpisode(seriesId,season,episode){
    toast('Coming to Reelhouse soon');
    return;
  }
- cur.source=source;cur.episode=Number(episode);cur.m=cur.m||ep;startFilm(source,title);
+ cur.source=source;cur.episode=Number(episode);source.progressKey=resumeKey;cur.m=cur.m||ep;startFilm(source,title);
 }
 async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeriesDetail(id,auto);killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');
  box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openDetail(id,auto);
@@ -705,7 +705,7 @@ modal.addEventListener('click',e=>{
  if(t.closest('#playerCinema')){$('#wp .custom-player')?.classList.toggle('cinema-mode');return}
  if(t.closest('#playerLock')){$('#wp .custom-player')?.classList.toggle('controls-locked');return}
  if(t.closest('#playerSleep')){const mins=[0,15,30,60],curM=Number(localStorage.getItem('rh:sleep')||0),next=mins[(mins.indexOf(curM)+1)%mins.length];localStorage.setItem('rh:sleep',String(next));toast(next?'Sleep timer: '+next+' min':'Sleep timer off');if(next){clearTimeout(cur.sleep);cur.sleep=setTimeout(()=>{yp?.pauseVideo();toast('Sleep timer paused playback')},next*60000)}return}
- if(t.closest('[data-resume]')){t.closest('.resume-card')?.remove();return}
+ if(t.closest('[data-resume]')){const card=t.closest('.resume-card'),at=Number(card?.dataset.resumeAt||0);if(yp&&at)yp.seekTo(at,true);card?.remove();return}
  if(t.closest('[data-start-over]')){if(yp){yp.seekTo(0,true);yp.playVideo()};t.closest('.resume-card')?.remove();return}
  if(t.closest('[data-player-close]')){closeDetail();return}
  if(t.closest('[data-next-episode]')&&cur.kind==='tv'){const next=(Number(cur.episode||0)+1);playEpisode(cur.seriesId,cur.season,next);return}
