@@ -140,11 +140,19 @@ async function loadCatalogPage(s,page=1,append=false){
  const box=$('#cat-'+s.id);if(!box)return;
  const state=catalogState.get(s.id)||{page:0,loading:false,total:1,seen:new Set()};
  if(state.loading)return;
+ if(!append && !box.dataset.fallback){
+   const fallback=localFallbackFor(s.kind);
+   if(fallback.length){
+     box.innerHTML=fallback.map(card).join('');
+     box.dataset.fallback='1';
+   }
+ }
  if(page>state.total)return;
  state.loading=true;catalogState.set(s.id,state);
  try{
    const d=await api(s.path,catalogParams(s,page));
    if(!append)box.innerHTML='';
+   delete box.dataset.fallback;
    const results=(d.results||[]).filter(m=>m.poster_path).map(m=>s.kind==='movie'?{...m,media_type:'movie'}:s.kind==='tv'?{...m,media_type:'tv'}:m);
    const fresh=results.filter(m=>{const k=m.media_type+':'+m.id;if(state.seen.has(k))return false;state.seen.add(k);return true});
    box.insertAdjacentHTML(append?'beforeend':'afterbegin',fresh.map(card).join(''));
@@ -193,18 +201,21 @@ function setupHomeInfinite(){
 }
 async function home(){
  catalogState.clear();
+ const localHero=localFallbackFor('movie').slice(0,6);
+
  const initial=CATALOG_SECTIONS.slice(0,HOME_BATCH);
  view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}<section class="upcoming-space" id="upcomingSpace"><div class="upcoming-copy"><span class="welcome-kicker">WHAT'S NEXT</span><h2>Not out yet. Still worth knowing about.</h2><p>Track cinema releases, set a reminder, and keep the date close.</p></div><div class="upcoming-list" id="upcomingList"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></section></div>`;
  loadIA();
  initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false);});
  setupHomeInfinite();
  renderUpcomingSpace();
+ if(localHero.length) hero(localHero);
  try{
    const d=await api('/trending/movie/week');
    hero((d.results||[]).filter(m=>m.backdrop_path).slice(0,6));
  }catch{
    const fallback=localFallbackFor('movie');
-   const h=$('.hero'); if(h) h.classList.add('ready');
+   if(fallback.length) hero(fallback.slice(0,6));
  }
 }
 async function renderUpcomingSpace(){const box=$('#upcomingList');if(!box)return;try{const d=await api('/movie/upcoming',{page:1,region:'NG'});const items=(d.results||[]).filter(x=>x.release_date&&x.poster_path).slice(0,6);box.innerHTML=items.map(x=>'<article class="upcoming-item"><img loading="lazy" src="'+IMG+'w342'+x.poster_path+'" alt=""><div><small>'+esc(new Date(x.release_date+'T09:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))+'</small><h3>'+esc(titleOf(x))+'</h3><p>'+esc((x.overview||'Release date announced.').slice(0,140))+'</p><div class="upcoming-actions"><button class="chip" data-upcoming-id="'+x.id+'" data-upcoming-title="'+esc(titleOf(x))+'" data-upcoming-date="'+x.release_date+'" data-upcoming-overview="'+esc(x.overview||'')+'">Set reminder</button><button class="chip" data-id="'+x.id+'" data-kind="movie">Details</button></div></div></article>').join('')||'<p class="empty">Upcoming releases are quiet right now.</p>'}catch{box.innerHTML='<p class="empty">Upcoming releases could not load right now.</p>'}}
