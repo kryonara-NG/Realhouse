@@ -690,7 +690,6 @@ openWelcome();
 document.addEventListener('click',e=>{
  const t=e.target;
  if(t.closest('[data-open-notifications]')){openNotifications();return}
- if(t.closest('#notifBell')){openNotifications();return}
  if(t.closest('[data-notifications-close]')){closeNotifications();return}
  if(t.closest('[data-notifications-clear]')){store.set(INBOX_KEY,inbox().map(x=>({...x,read:true})));renderNotificationBadge();openNotifications();return}
  const n=t.closest('[data-notification-key]');if(n){store.set(INBOX_KEY,inbox().map(x=>x.key===n.dataset.notificationKey?{...x,read:true}:x));renderNotificationBadge();closeNotifications();if(n.dataset.notificationUrl)location.hash=n.dataset.notificationUrl;return}
