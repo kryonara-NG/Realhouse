@@ -47,7 +47,9 @@ function jget(url,h,persist){
  if(mem.has(url))return mem.get(url);
  if(persist)try{const c=JSON.parse(localStorage.getItem('c:'+url));if(c&&Date.now()-c.t<18e5){const q=Promise.resolve(c.d);mem.set(url,q);return q}}catch{}
  bar(1);
- const q=fetch(url,{headers:h}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(persist)try{localStorage.setItem('c:'+url,JSON.stringify({t:Date.now(),d}))}catch{try{Object.keys(localStorage).filter(k=>k.startsWith('c:')).forEach(k=>localStorage.removeItem(k))}catch{}}return d}).catch(e=>{mem.delete(url);throw e}).finally(()=>bar(-1));
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),9000);
+ const q=fetch(url,{headers:h,signal:controller.signal}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(persist)try{localStorage.setItem('c:'+url,JSON.stringify({t:Date.now(),d}))}catch{try{Object.keys(localStorage).filter(k=>k.startsWith('c:')).forEach(k=>localStorage.removeItem(k))}catch{}}return d}).catch(e=>{mem.delete(url);throw e}).finally(()=>{clearTimeout(timer);bar(-1)});
  mem.set(url,q);return q}
 function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
  if(KEY.length>40)h.Authorization='Bearer '+KEY;else u.searchParams.set('api_key',KEY);
