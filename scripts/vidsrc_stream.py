@@ -102,7 +102,6 @@ def extract_stream(
             user_agent=user_agent,
             viewport={"width": 1280, "height": 720},
             ignore_https_errors=True,
-            permissions=["autoplay"],
         )
 
         def add(url: str, discovered_by: str, referer: str = "", content_type: str = "") -> None:
