@@ -2,6 +2,7 @@ import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js
 import { TMDB_READ_TOKEN } from './config.js';
 import { registerPlugin } from '@capacitor/core';
 import Hls from 'hls.js';
+import { isNativeReelhouse, canDownloadNativeSource, downloadNativeMovie, getNativeDownloads, shareNativeDownload, deleteNativeDownload, openNativeDownload, makeCalendarEvent } from './native/downloads.js';
 
 export function mountReelhouse(){
 
@@ -20,6 +21,7 @@ const $=(s,e=document)=>e.querySelector(s),IMG='https://image.tmdb.org/t/p/';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let KEY=TMDB_READ_TOKEN,lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
+let nativeDownloads=isNativeReelhouse()?getNativeDownloads():[];
 let installPrompt=null;
 const WELCOME_KEY='rh:welcomeSeen';
 const INDEPENDENCE_KEY='rh:independenceSeen';
@@ -84,6 +86,7 @@ const CATALOG_SECTIONS=[
  {id:'popular-series',title:'Popular series',path:'/tv/popular',kind:'tv'},
  {id:'new-movies',title:'New movies',path:'/movie/now_playing',kind:'movie'},
  {id:'new-series',title:'New series',path:'/tv/on_the_air',kind:'tv'},
+ {id:'upcoming',title:'Coming to Reelhouse',path:'/movie/upcoming',kind:'movie'},
  {id:'top-rated',title:'Top rated movies',path:'/movie/top_rated',kind:'movie'},
  {id:'anime',title:'Anime',path:'/discover/tv',kind:'tv',params:{with_genres:'16',with_origin_country:'JP',with_original_language:'ja'}},
  {id:'animation',title:'Animation',path:'/discover/movie',kind:'movie',params:{with_genres:'16'}},
@@ -261,9 +264,8 @@ async function browse(){
 }
 /* ---------- library ---------- */
 let tab='list';
-function mylist(){const L=lists[tab];
- view.innerHTML=`<div class="pg"><h1>Library</h1><div class="chips"><button class="chip ${tab==='list'?'on':''}" data-tab="list">Saved (${lists.list.length})</button><button class="chip ${tab==='fav'?'on':''}" data-tab="fav">Favorites (${lists.fav.length})</button></div><div class="grid">${L.map(card).join('')}</div>${L.length?'':`<p class="empty">Nothing here yet. Open any movie and tap ${tab==='list'?'“Save to list”':'“Favorite”'} to keep it.</p>`}</div>`}
-
+function libraryRow(x,kind){const title=titleOf(x)||x.title||'Untitled';const image=x.poster_path?IMG+'w342'+x.poster_path:'';return '<div class="library-row"><div class="library-thumb">'+(image?'<img loading="lazy" src="'+esc(image)+'" alt="">':'<span>R</span>')+'</div><div class="library-copy"><b>'+esc(title)+'</b><small>'+(kind==='download'?'Downloaded':'Saved')+(x.season!=null?' · S'+String(x.season).padStart(2,'0')+'E'+String(x.episode).padStart(2,'0'):'')+'</small></div><div class="library-actions">'+(kind==='download'?'<button class="chip" data-native-open="'+esc(x.id)+'">Watch</button><button class="chip" data-native-share="'+esc(x.id)+'">Share</button><button class="chip" data-native-delete="'+esc(x.id)+'">Delete</button>':'<button class="chip" data-id="'+esc(x.id)+'" data-kind="'+esc(x.media_type||'movie')+'">Open</button>')+'</div></div>'}
+function mylist(){const downloads=isNativeReelhouse()?getNativeDownloads():[];const L=tab==='downloads'?downloads:(tab==='fav'?lists.fav:lists.list);const kind=tab==='downloads'?'download':'saved';view.innerHTML='<div class="pg library-page"><div class="library-head"><div><span class="welcome-kicker">REELHOUSE</span><h1>Library</h1><p class="mt">Saved titles, favorites and private app downloads.</p></div></div><div class="chips library-tabs"><button class="chip '+(tab==='downloads'?'on':'')+'" data-tab="downloads">Downloaded ('+downloads.length+')</button><button class="chip '+(tab==='list'?'on':'')+'" data-tab="list">Saved ('+lists.list.length+')</button><button class="chip '+(tab==='fav'?'on':'')+'" data-tab="fav">Favorites ('+lists.fav.length+')</button></div><div class="library-list">'+L.map(x=>libraryRow(x,kind)).join('')+'</div>'+(L.length?'':'<p class="empty">Nothing here yet. Save a title or download an MP4 in the Reelhouse app.</p>')+'</div>'}
 /* ---------- app install ---------- */
 const APK_URL=['https:','github.com','kryonara-NG','Realhouse','releases','latest','download','Reelhouse.apk'].join('/');
 const RELEASE_API='https://api.github.com/repos/kryonara-NG/Realhouse/releases/latest';
