@@ -172,15 +172,17 @@ function setupHomeInfinite(){
 async function home(){
  catalogState.clear();
  const initial=CATALOG_SECTIONS.slice(0,HOME_BATCH);
- view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}</div>`;
+ view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}<section class="upcoming-space" id="upcomingSpace"><div class="upcoming-copy"><span class="welcome-kicker">WHAT'S NEXT</span><h2>Not out yet. Still worth knowing about.</h2><p>Track cinema releases, set a reminder, and keep the date close.</p></div><div class="upcoming-list" id="upcomingList"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></section></div>`;
  loadIA();
  initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false);});
  setupHomeInfinite();
+ renderUpcomingSpace();
  try{
    const d=await api('/trending/movie/week');
    hero((d.results||[]).filter(m=>m.backdrop_path).slice(0,6));
  }catch{}
 }
+async function renderUpcomingSpace(){const box=$('#upcomingList');if(!box)return;try{const d=await api('/movie/upcoming',{page:1,region:'NG'});const items=(d.results||[]).filter(x=>x.release_date&&x.poster_path).slice(0,6);box.innerHTML=items.map(x=>'<article class="upcoming-item"><img loading="lazy" src="'+IMG+'w342'+x.poster_path+'" alt=""><div><small>'+esc(new Date(x.release_date+'T09:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))+'</small><h3>'+esc(titleOf(x))+'</h3><p>'+esc((x.overview||'Release date announced.').slice(0,140))+'</p><div class="upcoming-actions"><button class="chip" data-upcoming-id="'+x.id+'" data-upcoming-title="'+esc(titleOf(x))+'" data-upcoming-date="'+x.release_date+'" data-upcoming-overview="'+esc(x.overview||'')+'">Set reminder</button><button class="chip" data-id="'+x.id+'" data-kind="movie">Details</button></div></div></article>').join('')||'<p class="empty">Upcoming releases are quiet right now.</p>'}catch{box.innerHTML='<p class="empty">Upcoming releases could not load right now.</p>'}}
 function hero(ms){
  if(!ms.length)return;
  $('.hero').classList.add('ready');const bgs=[...view.querySelectorAll('.bg')],hc=$('.hc'),dots=$('.dots');let i=0,f=0;
