@@ -1,7 +1,7 @@
 const DEFAULT_BASE_URL = "https://apig.inmoviebox.com";
 
 function md5(input) {
-  const msg = new TextEncoder().encode(input);
+  const msg = input instanceof Uint8Array ? input : new TextEncoder().encode(input);
   const bitLen = msg.length * 8;
   const bytes = Array.from(msg);
   bytes.push(0x80);
@@ -38,12 +38,12 @@ function base64Decode(s) {
 }
 async function hmacMd5(keyBytes, data) {
   const block=64; let k=Uint8Array.from(keyBytes);
-  if(k.length>block) k=Uint8Array.from(hexToBytes(md5(String.fromCharCode(...k))));
+  if(k.length>block) k=hexToBytes(md5(k));
   const kb=new Uint8Array(block); kb.set(k);
   const ipad=new Uint8Array(block), opad=new Uint8Array(block);
   for(let i=0;i<block;i++){ipad[i]=kb[i]^0x36;opad[i]=kb[i]^0x5c}
-  const inner=md5(String.fromCharCode(...concat(ipad,new TextEncoder().encode(data))));
-  const outer=md5(String.fromCharCode(...concat(opad,hexToBytes(inner))));
+  const inner=md5(concat(ipad,new TextEncoder().encode(data)));
+  const outer=md5(concat(opad,hexToBytes(inner)));
   return hexToBytes(outer);
 }
 function concat(a,b){const x=new Uint8Array(a.length+b.length);x.set(a);x.set(b,a.length);return x}
