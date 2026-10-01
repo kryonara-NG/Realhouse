@@ -496,7 +496,7 @@ function mountTrailer(video,title){
  const w=$('#wp');if(!w||!video?.key)return;
  killPlayer();
  const src='https://www.youtube.com/embed/'+encodeURIComponent(video.key)+'?autoplay=1&playsinline=1&rel=0&controls=1&origin='+encodeURIComponent(location.origin);
- w.innerHTML='<div class="native-player trailer-player"><iframe id="trailer-frame" src="'+src+'" title="'+esc(title||'Trailer')+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+ w.innerHTML='<div class="player-exit">'+topbar+'</div><div class="native-player trailer-player"><iframe id="trailer-frame" src="'+src+'" title="'+esc(title||'Trailer')+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
  remember(cur.m);
 }
 async function startTrailer(){
@@ -551,7 +551,7 @@ function mountPlayerEmbed(url,title,source={}){
  const w=$('#wp');if(!w||!url)return;
  const wrap=document.createElement('div');wrap.className='native-player embedded-player';
  wrap.innerHTML='<div class="source-loading" id="playerLoading"><div class="source-loader"></div><strong>Loading movie…</strong></div><iframe id="movie-frame" src="'+esc(url)+'" title="'+esc(title||'Now playing')+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
- w.replaceChildren(wrap);
+ w.innerHTML='<div class="player-exit">'+topbar+'</div>';w.appendChild(wrap);
  const frame=$('#movie-frame'),loading=$('#playerLoading');frame?.addEventListener('load',()=>setTimeout(()=>loading?.remove(),450),{once:true});
  remember(cur.m);
 }
