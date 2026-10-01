@@ -467,7 +467,7 @@ function mountNativeVideo(url,title,source={}){
  const type=source?.type||(/\.m3u8(?:$|\?)/i.test(String(url||''))?'hls':'mp4');
  const safeTitle=esc(title||'Reelhouse');
  const poster=cur.m?.backdrop_path?IMG+'w1280'+cur.m.backdrop_path:(cur.m?.poster_path?IMG+'w780'+cur.m.poster_path:'');
- w.innerHTML=`<div class="custom-player native-player" aria-label="${safeTitle}"><video id="vd" playsinline preload="metadata" controlslist="nodownload" disablepictureinpicture=${poster?` poster="${esc(poster)}"`:''}></video></div>`+ctl;
+ w.innerHTML=`<div class="custom-player native-player" aria-label="${safeTitle}"><video id="vd" playsinline preload="metadata" controlslist="nodownload" disablepictureinpicture></video></div>`+ctl;
  w.classList.remove('idle');
  const v=$('#vd');
  if(!v)return showErr('The native video element could not be created.');
@@ -497,8 +497,10 @@ function mountNativeVideo(url,title,source={}){
   }else if(Hls.isSupported()){
    const config={enableWorker:true};
    const headers=source?.headers||{};
-   if(Object.keys(headers).length){
-    config.xhrSetup=(xhr)=>{for(const [k,val] of Object.entries(headers)){if(val!=null&&val!=='')xhr.setRequestHeader(k,String(val))}};
+   const blocked=/^(cookie|host|origin|referer|user-agent|content-length)$/i;
+   const safeHeaders=Object.entries(headers).filter(([k,v])=>v!=null&&v!==''&&!blocked.test(k));
+   if(safeHeaders.length){
+    config.xhrSetup=(xhr)=>{for(const [k,val] of safeHeaders)xhr.setRequestHeader(k,String(val))};
    }
    const hls=new Hls(config);
    cur.hls=hls;
