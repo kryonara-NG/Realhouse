@@ -91,13 +91,14 @@ def extract_stream(
             headless=not headed,
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
         )
+        user_agent = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/140.0.0.0 Safari/537.36"
+        )
         context = browser.new_context(
             service_workers="block",
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/140.0.0.0 Safari/537.36"
-            ),
+            user_agent=user_agent,
             viewport={"width": 1280, "height": 720},
         )
 
@@ -108,7 +109,7 @@ def extract_stream(
                 url,
                 "network",
                 referer or player_url,
-                context.pages[0].request.headers.get("user-agent", "") if context.pages else "",
+                user_agent,
                 content_type,
             )
             if item:
@@ -178,7 +179,7 @@ def inspect_frame(
 
     frame_url = frame.url or player_url
     try:
-        ua = frame.page.context.pages[0].request.headers.get("user-agent", "")
+        ua = frame.page.context.pages[0].evaluate("navigator.userAgent")
     except Exception:
         ua = ""
 
