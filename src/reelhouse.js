@@ -48,7 +48,7 @@ function jget(url,h,persist){
  if(persist)try{const c=JSON.parse(localStorage.getItem('c:'+url));if(c&&Date.now()-c.t<18e5){const q=Promise.resolve(c.d);mem.set(url,q);return q}}catch{}
  bar(1);
  const controller=new AbortController();
- const timer=setTimeout(()=>controller.abort(),9000);
+ const timer=setTimeout(()=>controller.abort(),5000);
  const q=fetch(url,{headers:h,signal:controller.signal}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(persist)try{localStorage.setItem('c:'+url,JSON.stringify({t:Date.now(),d}))}catch{try{Object.keys(localStorage).filter(k=>k.startsWith('c:')).forEach(k=>localStorage.removeItem(k))}catch{}}return d}).catch(e=>{mem.delete(url);throw e}).finally(()=>{clearTimeout(timer);bar(-1)});
  mem.set(url,q);return q}
 function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
@@ -112,6 +112,20 @@ const CATALOG_SECTIONS=[
  {id:'music',title:'Music & performance',path:'/discover/movie',kind:'movie',params:{with_genres:'10402'}}
 ];
 
+const LOCAL_FALLBACK = [
+ {id:550,media_type:'movie',title:'Fight Club',release_date:'1999-10-15',poster_path:'/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',vote_average:8.4},
+ {id:27205,media_type:'movie',title:'Inception',release_date:'2010-07-15',poster_path:'/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg',vote_average:8.4},
+ {id:157336,media_type:'movie',title:'Interstellar',release_date:'2014-11-05',poster_path:'/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',vote_average:8.4},
+ {id:155,media_type:'movie',title:'The Dark Knight',release_date:'2008-07-16',poster_path:'/qJ2tW6WMUDux911r6m7haRef0WH.jpg',vote_average:9},
+ {id:496243,media_type:'movie',title:'Parasite',release_date:'2019-05-30',poster_path:'/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg',vote_average:8.5},
+ {id:693134,media_type:'movie',title:'Dune: Part Two',release_date:'2024-02-27',poster_path:'/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',vote_average:8.2},
+ {id:66732,media_type:'tv',name:'Stranger Things',first_air_date:'2016-07-15',poster_path:'/49WJfeN0moxb9IPfGn8AIqMGskD.jpg',vote_average:8.6},
+ {id:1396,media_type:'tv',name:'Breaking Bad',first_air_date:'2008-01-20',poster_path:'/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg',vote_average:9.5}
+];
+function localFallbackFor(kind){
+ return LOCAL_FALLBACK.filter(m=>kind==='mixed'||m.media_type===kind);
+}
+
 const HOME_BATCH=5;
 let homeCatalogObserver=null;
 const catalogState=new Map();
@@ -138,7 +152,12 @@ async function loadCatalogPage(s,page=1,append=false){
    if(!fresh.length&&page<state.total)loadCatalogPage(s,page+1,true);
  }catch{
    state.loading=false;catalogState.set(s.id,state);
-   if(!append)box.innerHTML='<p class="empty">This section could not load right now.</p>';
+   if(!append){
+     const fallback=localFallbackFor(s.kind).filter(m=>!state.seen.has(m.media_type+':'+m.id));
+     fallback.forEach(m=>state.seen.add(m.media_type+':'+m.id));
+     box.innerHTML=fallback.map(card).join('')||'<p class="empty">This section could not load right now.</p>';
+     box.dataset.fallback='1';
+   }
  }
 }
 function watchCatalogScroll(s){
@@ -183,7 +202,10 @@ async function home(){
  try{
    const d=await api('/trending/movie/week');
    hero((d.results||[]).filter(m=>m.backdrop_path).slice(0,6));
- }catch{}
+ }catch{
+   const fallback=localFallbackFor('movie');
+   const h=$('.hero'); if(h) h.classList.add('ready');
+ }
 }
 async function renderUpcomingSpace(){const box=$('#upcomingList');if(!box)return;try{const d=await api('/movie/upcoming',{page:1,region:'NG'});const items=(d.results||[]).filter(x=>x.release_date&&x.poster_path).slice(0,6);box.innerHTML=items.map(x=>'<article class="upcoming-item"><img loading="lazy" src="'+IMG+'w342'+x.poster_path+'" alt=""><div><small>'+esc(new Date(x.release_date+'T09:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))+'</small><h3>'+esc(titleOf(x))+'</h3><p>'+esc((x.overview||'Release date announced.').slice(0,140))+'</p><div class="upcoming-actions"><button class="chip" data-upcoming-id="'+x.id+'" data-upcoming-title="'+esc(titleOf(x))+'" data-upcoming-date="'+x.release_date+'" data-upcoming-overview="'+esc(x.overview||'')+'">Set reminder</button><button class="chip" data-id="'+x.id+'" data-kind="movie">Details</button></div></div></article>').join('')||'<p class="empty">Upcoming releases are quiet right now.</p>'}catch{box.innerHTML='<p class="empty">Upcoming releases could not load right now.</p>'}}
 function hero(ms){
