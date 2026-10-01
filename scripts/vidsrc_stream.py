@@ -14,6 +14,7 @@ import argparse
 import subprocess
 from pathlib import Path
 from typing import Optional
+import json
 
 from playwright.sync_api import sync_playwright
 
@@ -56,6 +57,20 @@ def extract_stream(player_url: str, timeout_ms: int = 10_000) -> Optional[str]:
     return m3u8_url
 
 
+def save_stream_map(media_key: str, stream_url: str, streams_file: str) -> None:
+    """Persist the captured URL for the Reelhouse frontend player."""
+    path = Path(streams_file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if not isinstance(payload, dict):
+            payload = {}
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    payload[media_key] = {"url": stream_url, "type": "hls", "source": "vidsrc-extracted"}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"[+] Wired HLS stream to Reelhouse key: {media_key}")
+
 def download_hls(
     m3u8_url: str,
     output_path: str,
@@ -94,6 +109,20 @@ def main() -> int:
         help="Output MP4 path. If omitted, only the captured playlist is printed.",
     )
     parser.add_argument(
+        "--media-key",
+        help="Reelhouse source key, e.g. movie:550 or tv:1399:1:1",
+    )
+    parser.add_argument(
+        "--streams-file",
+        default="public/vidsrc-streams.json",
+        help="Frontend stream map written after extraction.",
+    )
+    parser.add_argument(
+        "--no-download",
+        action="store_true",
+        help="Only wire the captured stream into Reelhouse; do not run FFmpeg.",
+    )
+    parser.add_argument(
         "--timeout-ms",
         type=int,
         default=10_000,
@@ -107,6 +136,10 @@ def main() -> int:
         return 1
 
     print(f"[+] Stream URL: {stream_url}")
+    if args.media_key:
+        save_stream_map(args.media_key, stream_url, args.streams_file)
+    if args.no_download:
+        return 0
     if args.output:
         try:
             download_hls(stream_url, args.output, args.player_url)
