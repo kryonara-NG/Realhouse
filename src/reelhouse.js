@@ -28,6 +28,7 @@ const VIDSRC_ORIGINS=['https://vidsrc.sh','https://vidsrcme.ru','https://vidsrc.
 const inbox=()=>store.get(INBOX_KEY,[]);
 function addInbox(item){const list=inbox();const key=item.key||String(Date.now());if(list.some(x=>x.key===key))return;list.unshift({...item,key,at:item.at||Date.now()});store.set(INBOX_KEY,list.slice(0,60));renderNotificationBadge();}
 function renderNotificationBadge(){const b=$('#notifBadge');if(!b)return;const n=inbox().filter(x=>!x.read).length;b.hidden=!n;b.textContent=n>99?'99+':String(n)}
+function seedNotifications(){if(store.get('rh:inboxSeeded',false))return;addInbox({key:'welcome',title:'Welcome to Reelhouse',body:'Your movie library is ready. Explore a title and start watching.',url:'#/home'});store.set('rh:inboxSeeded',true)}
 function openNotifications(){const box=$('#notifications');if(!box)return;const list=inbox();box.innerHTML=`<div class="notification-page"><header class="notification-head"><div><span class="welcome-kicker">REELHOUSE</span><h1>Notifications</h1><p>${list.length?'A few things worth seeing.':'You are all caught up.'}</p></div><button class="icon-btn notification-close" data-notifications-close aria-label="Close notifications">${I.x}</button></header><div class="notification-list">${list.length?list.map(x=>`<button class="notification-card ${x.read?'read':''}" data-notification-key="${esc(x.key)}" data-notification-url="${esc(x.url||'#/home')}"><span class="notification-dot"></span><span><b>${esc(x.title)}</b><small>${esc(x.body||'')}</small><time>${new Date(x.at).toLocaleString()}</time></span></button>`).join(''):'<div class="notification-empty"><div>✓</div><h2>Nothing new</h2><p>Fresh releases and useful Reelhouse updates will show up here.</p></div>'}</div><button class="chip notification-clear" data-notifications-clear>Mark everything read</button></div>`;box.classList.add('on');box.setAttribute('aria-hidden','false');store.set(INBOX_KEY,list.map(x=>({...x,read:true})));renderNotificationBadge()}
 function closeNotifications(){const box=$('#notifications');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true')}
 function openWelcome(){const box=$('#welcomeModal');if(!box||store.get(WELCOME_KEY,false))return;box.classList.add('on');box.setAttribute('aria-hidden','false');document.body.classList.add('welcome-open')}
@@ -431,13 +432,13 @@ const back=`<a class="chip" href="#/me">${I.l} Me</a>`;
 function me(sub){const on=session&&acct;
  if(sub==='recent'){const L=lists.recent;return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Recently watched</h1><div class="grid">${L.map(rc).join('')}</div>${L.length?'':'<p class="empty">Trailers and films you play show up here.</p>'}</div>`}
  if(sub==='downloads'){const L=lists.dl;return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Downloads</h1><p class="mt" style="margin-bottom:16px">Free films use the browser download flow. If your browser opens the media instead, use its built-in download control.</p>${L.map(x=>`<div class="li"><div><b>${esc(x.title)}</b><small class="mt" style="display:block">${new Date(x.at).toLocaleDateString()}</small></div><span style="flex:1"></span><a class="chip" href="${esc(x.url)}" target="_blank" rel="noopener">Open file</a><button class="chip" data-act="rmdl" data-id="${esc(x.id)}">Remove</button></div>`).join('')}${L.length?'':'<p class="empty">No downloads yet. Free full movies have a Download button on their details page.</p>'}</div>`}
- if(sub==='settings')return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Settings</h1><h3 class="sh">Appearance</h3><div class="seg">${['light','dark','system'].map(v=>`<button class="${S.theme===v?'on':''}" data-act="theme" data-v="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><h3 class="sh">Playback</h3><label class="li"><span>Rotate featured movies on Home</span><span style="flex:1"></span><input type="checkbox" data-act="rotate" ${S.rotate?'checked':''}></label><div class="li"><div><b>Subtitle language</b><small class="mt">Used as the default when VidSrc has matching tracks.</small></div><span style="flex:1"></span><button class="chip" data-act="subs">${esc(subtitlePrefs().join(', '))}</button></div><h3 class="sh">Data</h3><button class="mi" data-act="clear">Clear watch history</button><p class="mt" style="font-size:13px;margin-top:14px">Movie info by TMDB. Free films and downloads come from the Internet Archive public-domain library. Accounts and lists are stored only in this browser.</p></div>`;
+ if(sub==='settings')return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Settings</h1><h3 class="sh">Appearance</h3><div class="seg">${['light','dark','system'].map(v=>`<button class="${S.theme===v?'on':''}" data-act="theme" data-v="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><h3 class="sh">Playback</h3><label class="li"><span>Rotate featured movies on Home</span><span style="flex:1"></span><input type="checkbox" data-act="rotate" ${S.rotate?'checked':''}></label><div class="li"><div><b>Subtitle language</b><small class="mt">Used as the default when captions are available.</small></div><span style="flex:1"></span><button class="chip" data-act="subs">${esc(subtitlePrefs().join(', '))}</button></div><h3 class="sh">Data</h3><button class="mi" data-act="clear">Clear watch history</button><p class="mt" style="font-size:13px;margin-top:14px">Movie info by TMDB. Free films and downloads come from the Internet Archive public-domain library. Accounts and lists are stored only in this browser.</p></div>`;
  const head=on?`<div class="prof"><div class="avw"><div class="av">${acct.avatar?`<img src="${acct.avatar}" alt="">`:esc(acct.name[0].toUpperCase())}</div><label class="cam" title="Change photo">${I.cam}<input type="file" id="av" accept="image/*" hidden></label></div><div><h1 style="font-size:28px;margin:0">${esc(acct.name)}</h1><div class="mt">${esc(acct.email)}</div><button class="chip" data-act="name" style="margin-top:8px">Edit name</button></div></div>`
  :`<div class="hi"><h1>Your seat is waiting</h1><p>Create a free account to keep your list and favorites, pick films up where you left off, and make the profile yours.</p><div><button class="btn" data-act="up">Sign up</button><button class="btn" data-act="in">Log in</button></div></div>`;
  view.innerHTML=`<div class="pg">${head}<div class="st"><div><b>${lists.list.length}</b>Saved</div><div><b>${lists.fav.length}</b>Favorites</div><div><b>${lists.recent.length}</b>Watched</div></div>
  <a class="mi" href="#/me/recent">${ICO.recent}<span>Recently watched<small>Pick up where you stopped</small></span><em>${I.r}</em></a>
  <a class="mi" href="#/me/settings">${ICO.set}<span>Settings<small>Theme and playback</small></span><em>${I.r}</em></a>
- <button class="mi" data-open-notifications>${ICO.bell}<span>Notifications<small>Movie and Reelhouse updates</small></span><em>${I.r}</em></button>
+ <button class="mi" data-open-notifications>${ICO.bell}<span>Notifications<small>Movie and Reelhouse updates</small></span><b class="notif-badge" id="notifBadge" hidden></b><em>${I.r}</em></button>
  <a class="mi" href="#/app">${ICO.dl}<span>Download App<small>Get the latest Reelhouse Android app</small></span><em>${I.r}</em></a>
  ${on?'<button class="mi" data-act="out"><span>Log out</span></button>':''}</div>`}
 const sha=async s=>{try{return[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return btoa(s)}};
@@ -489,8 +490,20 @@ function wake(){const w=$('#wp');if(!w)return;w.classList.remove('idle');clearTi
 function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState();s===1?yp.pauseVideo():(s===0?yp.seekTo(0):yp.playVideo())}
 function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove('idle');wake();spin(1);clearInterval(tick);
  tick=setInterval(()=>{if(!yp||!yp.getDuration)return;const d=yp.getDuration(),t=yp.getCurrentTime();if(!drag){const s=$('#seek');if(s){s.value=d?t/d*1000:0;s.style.setProperty('--p',(d?t/d*100:0)+'%')}}const m=$('#tm');if(m)m.textContent=fmt(t)+' / '+fmt(d)},250)}
-function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open on YouTube</a>`:''}</div>`;e.classList.add('on')}
-async function startTrailer(){if(cur.source)startFilm(cur.source,titleOf(cur.m));else filmBtns(cur.m,true)}
+function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open trailer</a>`:''}</div>`;e.classList.add('on')}
+function trailerVideo(m){const v=(m?.videos?.results||[]).filter(x=>x.site==='YouTube'&&x.key);return v.find(x=>x.type==='Trailer'&&x.official)||v.find(x=>x.type==='Trailer')||v.find(x=>x.type==='Teaser')||v[0]||null}
+function mountTrailer(video,title){
+ const w=$('#wp');if(!w||!video?.key)return;
+ killPlayer();
+ const src='https://www.youtube.com/embed/'+encodeURIComponent(video.key)+'?autoplay=1&playsinline=1&rel=0&controls=1&origin='+encodeURIComponent(location.origin);
+ w.innerHTML='<div class="native-player trailer-player"><iframe id="trailer-frame" src="'+src+'" title="'+esc(title||'Trailer')+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+ remember(cur.m);
+}
+async function startTrailer(){
+ const t=trailerVideo(cur.m);
+ if(!t){mount('<div class="source-loading"><div class="source-loader"></div><strong>Trailer unavailable</strong><span>Choose the full movie to watch.</span></div>');return}
+ mountTrailer(t,titleOf(cur.m));
+}
 function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'');return h.includes('vidsrc')?('Source '+(i+1)):h}catch{return 'Source '+(i+1)}}
 function mountNativeVideo(url,title,source={}){
  const w=$('#wp');if(!w||!url)return;
@@ -527,38 +540,33 @@ function mountNativeVideo(url,title,source={}){
 async function startFilm(source,title){
  if(!requireSession(()=>startFilm(source,title)))return;
  killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');
-
- // Direct media is always rendered by the native Reelhouse player.
- if(source?.type==='mp4'||source?.type==='hls'||source?.type==='direct'||source?.type==='video'){
-   mountNativeVideo(source.url,title,source);return;
- }
-
- // Never fall back to a VidSrc iframe. Direct media must play in Reelhouse's own player.
- mount('');
  let u=typeof source==='string'?null:source?.url;
  if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
- if(!$('#wp'))return;
- if(!u)return showErr('No direct video file is available for this title yet.');
- mountNativeVideo(u,title,typeof source==='object'?source:{});
+ if(!u)return showErr('This movie is not available right now.');
+ if(source?.type==='embed'){mountPlayerEmbed(u,title,source);return}
+ if(source?.type==='mp4'||source?.type==='hls'||source?.type==='direct'||source?.type==='video'){mountNativeVideo(u,title,source);return}
+ mountPlayerEmbed(u,title,source||{});
+}
+function mountPlayerEmbed(url,title,source={}){
+ const w=$('#wp');if(!w||!url)return;
+ const wrap=document.createElement('div');wrap.className='native-player embedded-player';
+ wrap.innerHTML='<div class="source-loading" id="playerLoading"><div class="source-loader"></div><strong>Loading movie…</strong></div><iframe id="movie-frame" src="'+esc(url)+'" title="'+esc(title||'Now playing')+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+ w.replaceChildren(wrap);
+ const frame=$('#movie-frame'),loading=$('#playerLoading');frame?.addEventListener('load',()=>setTimeout(()=>loading?.remove(),450),{once:true});
+ remember(cur.m);
 }
 
 async function filmBtns(m,startAfterResolve=false){
  if(cur.m!==m||!$('#src'))return;
- if(startAfterResolve){
-   mount(`<div class="source-loading"><div class="source-loader"></div><strong>Finding a direct video source…</strong><span>Reelhouse is resolving the source in the background.</span></div>`);
- }
- $('#src').insertAdjacentHTML('beforeend','<span class="mt nf" id="sourceStatus">Checking direct playback…</span>');
+ if(startAfterResolve){mount('<div class="source-loading"><div class="source-loader"></div><strong>Loading movie…</strong></div>')}
  let source;try{source=await resolveMovieSource(m)}catch{source={status:'coming-soon'}}
  if(cur.m!==m)return;
- const st=$('#sourceStatus');
  if(source.status!=='ready'){
-   if(st){st.className='source-state coming';st.textContent='Direct source unavailable'}
-   if(startAfterResolve)showErr('A playable direct video source could not be resolved for this title.');
+   if(startAfterResolve)showErr('This movie could not be played right now.');
    return;
  }
  cur.source=source;cur.film=source.identifier||null;
- if(st)st.remove();
- $('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="film">Full movie</button>');
+ $('#src').insertAdjacentHTML('afterbegin','<button class="chip" data-src="trailer">Trailer</button><button class="chip" data-src="film">Full movie</button>');
  const d=$('#dlb');
  if(d&&source.identifier){d.hidden=false;d.dataset.dl=source.identifier;d.dataset.t=m.title}
  const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`);
@@ -578,7 +586,7 @@ async function openSeriesDetail(id,auto){
  <div class="wi"><div class="series-kicker">SERIES</div><h1>${esc(titleOf(m))}</h1>${m.tagline?`<div class="tg">${esc(m.tagline)}</div>`:''}
  <div class="wm"><span class="rt">${I.star}${(m.vote_average||0).toFixed(1)}</span><span>${yr(m)}</span><span>${m.number_of_seasons||0} seasons</span><span>${m.number_of_episodes||0} episodes</span></div>
  <div class="gs">${(m.genres||[]).map(g=>`<span>${esc(g.name)}</span>`).join('')}</div>
- <div class="src" id="src"><span class="mt nf">Full playback loads from VidSrc</span></div>
+ <div class="src" id="src"><span class="mt nf">Choose how you want to watch.</span></div>
  <div class="acts"><button class="act ${isS?'on':''}" data-tg="list">${isS?I.bmF:I.bm}<span>${isS?'Saved':'Save'}</span></button><button class="act ${isF?'on':''}" data-tg="fav">${isF?I.heartF:I.heart}<span>${isF?'Favorited':'Favorite'}</span></button></div>
  <p class="ovw" id="ovw">${esc(m.overview)||'No overview available.'}</p>
  <div class="season-bar"><label for="seasonSelect">Season</label><select id="seasonSelect">${(m.seasons||[]).filter(s=>s.season_number>=0).map(s=>`<option value="${s.season_number}" ${s.season_number===cur.season?'selected':''}>Season ${s.season_number}${s.episode_count?` · ${s.episode_count} episodes`:''}</option>`).join('')}</select></div>
@@ -618,7 +626,7 @@ async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeries
  <div class="wi"><h1>${esc(m.title)}</h1>${m.tagline?`<div class="tg">${esc(m.tagline)}</div>`:''}
  <div class="wm"><span class="rt">${I.star}${m.vote_average.toFixed(1)}</span><span>${yr(m)}</span>${m.runtime?`<span>${Math.floor(m.runtime/60)}h ${m.runtime%60}m</span>`:''}${dir?`<span>${esc(dir.name)}</span>`:''}</div>
  <div class="gs">${m.genres.map(g=>`<span>${esc(g.name)}</span>`).join('')}</div>
- <div class="src" id="src"><span class="mt nf">Full playback loads from VidSrc</span></div>
+ <div class="src" id="src"><span class="mt nf">Choose how you want to watch.</span></div>
  <div class="acts"><button class="act ${isS?'on':''}" data-tg="list">${isS?I.bmF:I.bm}<span>${isS?'Saved':'Save'}</span></button><button class="act ${isF?'on':''}" data-tg="fav">${isF?I.heartF:I.heart}<span>${isF?'Favorited':'Favorite'}</span></button><button class="act" id="dlb" data-dl="" hidden>${I.dl}<span>Download</span></button></div>
  <p class="ovw" id="ovw">${esc(m.overview)||'No overview available.'}</p>${(m.overview||'').length>140?'<button class="more2" data-more>More</button>':''}
  ${cast?`<h3>Cast</h3><div class="cast">${cast}</div>`:''}
@@ -704,7 +712,7 @@ document.addEventListener('click',e=>{
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REELHOUSE_NOTIFICATION_CLICK'){const u=e.data.url||'#/home';location.hash=u;closeNotifications()}});
 let notifTimer=null;
 function startNotificationMonitor(){clearInterval(notifTimer);const ns=notificationState();if(ns.enabled&&'Notification' in window&&Notification.permission==='granted'){checkMovieNotifications(false);notifTimer=setInterval(()=>checkMovieNotifications(false),30*60*1000)}}
-startNotificationMonitor();
+seedNotifications();renderNotificationBadge();startNotificationMonitor();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)startNotificationMonitor()});
 
 }
