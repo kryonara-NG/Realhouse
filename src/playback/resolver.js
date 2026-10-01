@@ -1,4 +1,4 @@
-const CACHE_PREFIX='rh:resolver:v3:';
+const CACHE_PREFIX='rh:resolver:v4:';
 const CACHE_TTL=30*60*1000;
 
 function readCache(key){
@@ -14,6 +14,19 @@ function writeCache(key,d){
 function directMap(){
   const map=globalThis.REELHOUSE_SOURCE_MAP;
   return map&&typeof map==='object'?map:{};
+}
+async function extractedSource(m,season,episode){
+  try{
+    const key=m?.media_type==='tv' ? `tv:${m.id}:${season}:${episode}` : `movie:${m?.id}`;
+    const r=await fetch('/vidsrc-streams.json?'+Date.now(),{cache:'no-store'});
+    if(!r.ok)return null;
+    const map=await r.json();
+    const x=map?.[key]??map?.[String(m?.id||'')];
+    if(!x)return null;
+    const url=typeof x==='string'?x:x.url;
+    if(!url)return null;
+    return {url,type:/\.m3u8(?:$|\?)/i.test(url)?'hls':'mp4',source:'vidsrc-extracted',tmdb_id:m?.id,season,episode,title:m?.title||m?.name||'Movie'};
+  }catch{return null}
 }
 function mappedSource(m,season,episode){
   const map=directMap();
@@ -87,6 +100,8 @@ async function findAvailableEpisode(series,season,episode){
 export async function resolveMovieSource(m){
   const key='movie:'+m?.id;
   const cached=readCache(key);if(cached)return cached;
+  const extracted=await extractedSource(m);
+  if(extracted){const result={...extracted,status:'ready'};writeCache(key,result);return result;}
   const mapped=mappedSource(m);
   if(mapped){const result={...mapped,status:'ready'};writeCache(key,result);return result;}
   const found=await findAvailableMovie(m);
@@ -99,6 +114,8 @@ export async function resolveMovieSource(m){
 export async function resolveEpisodeSource(series,season,episode,startAt=0){
   const key=`tv:${series?.id}:${season}:${episode}`;
   const cached=readCache(key);if(cached)return cached;
+  const extracted=await extractedSource(series,season,episode);
+  if(extracted){const result={...extracted,status:'ready'};writeCache(key,result);return result;}
   const mapped=mappedSource(series,season,episode);
   if(mapped){const result={...mapped,status:'ready'};writeCache(key,result);return result;}
   const found=await findAvailableEpisode(series,season,episode);
