@@ -40,7 +40,7 @@ function openIndependence(){const box=$('#independenceModal');if(!box)return;con
 function closeIndependence(){const box=$('#independenceModal');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true');document.body.classList.remove('celebration-open')}
 
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
-const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();document.documentElement.classList.toggle('reduce-motion',S.reducedMotion);
+const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();if(!document.getElementById('rhMotionStyle')){const st=document.createElement('style');st.id='rhMotionStyle';st.textContent='.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}';document.head.appendChild(st)}document.documentElement.classList.toggle('reduce-motion',S.reducedMotion);
 const mem=new Map();let pend=0,bt;
 const bar=d=>{pend+=d;const b=$('#bar');if(!b)return;clearTimeout(bt);if(pend>0){b.classList.add('on');b.style.width='70%'}else{b.style.width='100%';bt=setTimeout(()=>{b.classList.remove('on');b.style.width='0'},250)}};
 function jget(url,h,persist){
@@ -53,7 +53,7 @@ function jget(url,h,persist){
  mem.set(url,q);return q}
 function api(p,q={}){
  const u=new URL('/api/tmdb'+p,location.origin);
- for(const k in q)u.searchParams.set(k,q[k]);
+ if(!('language' in q))q.language=S.language==='en'?'en-US':S.language;for(const k in q)u.searchParams.set(k,q[k]);
  return jget(u.href,{},!/^\/movie\/\d/.test(p));
 }
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
@@ -66,7 +66,7 @@ const isTV=m=>m.media_type==='tv'||!!m.first_air_date||(!m.release_date&&!!m.nam
 const titleOf=m=>m.title||m.name||m.original_title||m.original_name||'Untitled';
 const dateOf=m=>m.release_date||m.first_air_date||'';
 const yr=m=>dateOf(m).slice(0,4)||'—';
-const card=m=>m.poster_path?`<a class="card" tabindex="0" role="button" data-id="${m.id}" data-kind="${isTV(m)?'tv':'movie'}"><i>${I.star}${(m.vote_average||0).toFixed(1)}</i><img loading="lazy" decoding="async" src="${IMG}w342${m.poster_path}" alt=""><div class="m"><b>${esc(titleOf(m))}</b><span>${yr(m)} · ${isTV(m)?'Series':'Movie'}</span></div></a>`:'';
+const card=m=>m.poster_path?`<a class="card" tabindex="0" role="button" data-id="${m.id}" data-kind="${isTV(m)?'tv':'movie'}"><i>${I.star}${(m.vote_average||0).toFixed(1)}</i><img loading="lazy" decoding="async" src="${IMG}${S.dataSaver?'w185':'w342'}${m.poster_path}" alt=""><div class="m"><b>${esc(titleOf(m))}</b><span>${yr(m)} · ${isTV(m)?'Series':'Movie'}</span></div></a>`:'';
 const slim=m=>({id:m.id,title:titleOf(m),name:m.name,poster_path:m.poster_path,vote_average:m.vote_average,release_date:m.release_date,first_air_date:m.first_air_date,media_type:isTV(m)?'tv':'movie'});
 const has=(k,id)=>lists[k].some(m=>m.id===id);
 function toggle(k,m){const on=has(k,m.id);lists[k]=on?lists[k].filter(x=>x.id!==m.id):[slim(m),...lists[k]];store.set(k,lists[k]);
@@ -466,7 +466,7 @@ function act(n,el){haptic().catch(()=>{});switch(n){
  case'clear':lists.recent=[];S.prog={};store.set('recent',[]);toast('History cleared');return me('settings');
  case'rmdl':lists.dl=lists.dl.filter(x=>x.id!==el.dataset.id);store.set('dl',lists.dl);return me('downloads')}}
 function setAvatar(f){if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),z=Math.min(im.width,im.height);c.width=c.height=200;c.getContext('2d').drawImage(im,(im.width-z)/2,(im.height-z)/2,z,z,0,0,200,200);acct.avatar=c.toDataURL('image/jpeg',.85);store.set('acct',acct);toast('Photo updated');me()};im.src=r.result};r.readAsDataURL(f)}
-document.addEventListener('change',e=>{if(e.target.id==='av')setAvatar(e.target.files[0])});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='av')return setAvatar(t.files[0]);if(t.dataset?.act==='speed'||t.dataset?.act==='language'){act(t.dataset.act,t);}});
 
 /* ---------- watch page: small player on top, details underneath ---------- */
 let yp,ytP,tick,idle,drag=false,pm=null;
