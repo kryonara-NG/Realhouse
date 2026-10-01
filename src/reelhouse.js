@@ -22,6 +22,8 @@ const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{re
 let KEY=TMDB_READ_TOKEN,lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
 let installPrompt=null;
 const WELCOME_KEY='rh:welcomeSeen';
+const INDEPENDENCE_KEY='rh:independenceSeen';
+const isInstalledApp=()=>Boolean(window.Capacitor?.isNativePlatform?.()||window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true);
 const INBOX_KEY='rh:inbox';
 const SUBS_KEY='rh:subtitlePrefs';
 const VIDSRC_ORIGINS=['https://vidsrc.sh','https://vidsrcme.ru','https://vidsrc.to','https://vidsrc.cc','https://vidsrc.xyz','https://vidsrc.pm'];
@@ -33,6 +35,8 @@ function openNotifications(){const box=$('#notifications');if(!box)return;const 
 function closeNotifications(){const box=$('#notifications');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true')}
 function openWelcome(){const box=$('#welcomeModal');if(!box||store.get(WELCOME_KEY,false))return;box.classList.add('on');box.setAttribute('aria-hidden','false');document.body.classList.add('welcome-open')}
 function closeWelcome(){const box=$('#welcomeModal');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true');document.body.classList.remove('welcome-open');store.set(WELCOME_KEY,true)}
+function openIndependence(){const box=$('#independenceModal');if(!box)return;const d=new Date();const key=d.getFullYear()+'-10-01';if(d.getMonth()!==9||d.getDate()!==1||store.get(INDEPENDENCE_KEY,'')===key)return;box.classList.add('on');box.setAttribute('aria-hidden','false');document.body.classList.add('celebration-open');store.set(INDEPENDENCE_KEY,key)}
+function closeIndependence(){const box=$('#independenceModal');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true');document.body.classList.remove('celebration-open')}
 
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();
@@ -406,6 +410,8 @@ async function enableMovieNotifications(){
 function disableMovieNotifications(){disableReminderNotifications();const ns=notificationState();ns.enabled=false;store.set('rh:notifications',ns);toast('Movie notifications turned off');app()}
 function app(){
  const ns=store.get('rh:notifications',{enabled:false,seen:[]});
+ const native=isInstalledApp();
+ const canInstall=!native&&(Boolean(installPrompt)||!window.Capacitor?.isNativePlatform?.());
  const supported='Notification' in window;
  const status=!supported?'Not supported':ns.enabled?'Enabled':'Off';
  view.innerHTML=`<div class="pg app-page">
@@ -413,10 +419,10 @@ function app(){
   <h1>Download Reelhouse</h1>
   <p>Get the Android app for the full Reelhouse experience. The download button resolves the latest published APK before starting the download.</p>
   <div class="app-actions">
-   <button class="btn pri" data-act="downloadapp">${I.dl}<span>Download Android APK</span></button>
-   <button class="btn" data-act="install">${installPrompt?'Install Reelhouse':'Add to home screen'}</button>
+   ${native?'<div class="app-installed"><span>✓</span><div><b>Reelhouse app installed</b><small>Native app mode is active on this device.</small></div></div>':'<button class="btn pri" data-act="downloadapp">${I.dl}<span>Download Android APK</span></button>'}
+   ${canInstall?'<button class="btn" data-act="install">'+(installPrompt?'Install Reelhouse':'Add to home screen')+'</button>':''}
   </div>
-  <small class="app-note">Latest APK · Android app · one download address</small>
+  <small class="app-note">${native?'You are using the installed Reelhouse app.':'Latest Android app and install options.'}</small>
  </div>
  <section class="download-tools">
   <div class="li app-tool"><div><b>Movie notifications</b><small class="mt">Get notified when new movies arrive on Reelhouse.</small></div><span class="notif-status">${esc(status)}</span><button class="chip" data-act="${ns.enabled?'notifsoff':'notifson'}">${ns.enabled?'Turn off':'Enable'}</button></div>
@@ -439,7 +445,7 @@ function me(sub){const on=session&&acct;
  <a class="mi" href="#/me/recent">${ICO.recent}<span>Recently watched<small>Pick up where you stopped</small></span><em>${I.r}</em></a>
  <a class="mi" href="#/me/settings">${ICO.set}<span>Settings<small>Theme and playback</small></span><em>${I.r}</em></a>
  <button class="mi" data-open-notifications>${ICO.bell}<span>Notifications<small>Movie and Reelhouse updates</small></span><b class="notif-badge" id="notifBadge" hidden></b><em>${I.r}</em></button>
- <a class="mi" href="#/app">${ICO.dl}<span>Download App<small>Get the latest Reelhouse Android app</small></span><em>${I.r}</em></a>
+ ${isInstalledApp()?'':'<a class="mi" href="#/app">'+ICO.dl+'<span>Download App<small>Get the latest Reelhouse Android app</small></span><em>'+I.r+'</em></a>'}
  ${on?'<button class="mi" data-act="out"><span>Log out</span></button>':''}</div>`}
 const sha=async s=>{try{return[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return btoa(s)}};
 function sheet(h){const e=$('#sheet');e.innerHTML=`<div class="dt sbox"><button class="x" data-act="sc" aria-label="Close">${I.x}</button>${h}</div>`;e.classList.add('on')}
@@ -709,14 +715,15 @@ document.addEventListener('click',e=>{
  if(t.closest('[data-notifications-close]')){closeNotifications();return}
  if(t.closest('[data-notifications-clear]')){store.set(INBOX_KEY,inbox().map(x=>({...x,read:true})));renderNotificationBadge();openNotifications();return}
  const n=t.closest('[data-notification-key]');if(n){store.set(INBOX_KEY,inbox().map(x=>x.key===n.dataset.notificationKey?{...x,read:true}:x));renderNotificationBadge();closeNotifications();if(n.dataset.notificationUrl)location.hash=n.dataset.notificationUrl;return}
- if(t.closest('[data-welcome-close],[data-welcome-enter]')){closeWelcome();return}
+ if(t.closest('[data-welcome-close],[data-welcome-enter]')){closeWelcome();setTimeout(openIndependence,450);return}
+ if(t.closest('[data-independence-close]')){closeIndependence();return}
  if(t.closest('[data-player-cinema]')){const wp=$('#wp');wp?.classList.toggle('cinema-focus');return}
 
 });
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REELHOUSE_NOTIFICATION_CLICK'){const u=e.data.url||'#/home';location.hash=u;closeNotifications()}});
 let notifTimer=null;
 function startNotificationMonitor(){clearInterval(notifTimer);const ns=notificationState();if(ns.enabled&&'Notification' in window&&Notification.permission==='granted'){checkMovieNotifications(false);notifTimer=setInterval(()=>checkMovieNotifications(false),30*60*1000)}}
-seedNotifications();renderNotificationBadge();startNotificationMonitor();
+seedNotifications();renderNotificationBadge();startNotificationMonitor();setTimeout(openIndependence,900);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)startNotificationMonitor()});
 
 }
