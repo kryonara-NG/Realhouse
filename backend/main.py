@@ -27,6 +27,67 @@ app.add_middleware(
 def health():
     return {"ok": True, "searchConfigured": bool(os.getenv("YOUTUBE_API_KEY"))}
 
+
+TMDB_API_BASE = "https://api.themoviedb.org/3"
+
+
+def _tmdb_token():
+    # Keep the TMDB credential server-side. VITE_* is accepted only as a
+    # backwards-compatible deployment variable; new deployments should use
+    # TMDB_READ_TOKEN instead.
+    return os.getenv("TMDB_READ_TOKEN") or os.getenv("VITE_TMDB_READ_TOKEN") or ""
+
+
+@app.get("/api/tmdb/{path:path}")
+def tmdb_proxy(path: str, request_query: str = ""):
+    """Proxy public TMDB v3 GET requests so the browser never needs the token."""
+    token = _tmdb_token()
+    if not token:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "message": "TMDB is not configured on the server. Set TMDB_READ_TOKEN.",
+            },
+        )
+
+    clean_path = "/" + path.lstrip("/")
+    if not clean_path or clean_path == "/":
+        return JSONResponse(status_code=400, content={"status": "error", "message": "TMDB path is required."})
+
+    # The upstream host is fixed; callers can only select a TMDB v3 path.
+    url = f"{TMDB_API_BASE}{clean_path}"
+    if request_query:
+        url += "?" + request_query
+
+    req = Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "Reelhouse/1.0",
+        },
+    )
+    try:
+        with urlopen(req, timeout=8) as response:
+            payload = response.read().decode("utf-8")
+            return JSONResponse(
+                status_code=response.status,
+                content=json.loads(payload),
+                headers={"Cache-Control": "public, max-age=60, s-maxage=300"},
+            )
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+        except Exception:
+            payload = {"status": "error", "message": "TMDB returned an upstream error."}
+        return JSONResponse(status_code=exc.code, content=payload)
+    except (URLError, TimeoutError, json.JSONDecodeError):
+        return JSONResponse(
+            status_code=502,
+            content={"status": "error", "message": "Could not reach TMDB. Try again."},
+        )
+
 @app.get("/api/search")
 def search(q: str = Query(min_length=1, max_length=160)):
     api_key = os.getenv("YOUTUBE_API_KEY")
