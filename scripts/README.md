@@ -4,74 +4,69 @@
 
 `import_scrapper.py` imports catalog/page-link output from the Scrapper project. It does not extract or download video streams.
 
-## First-party video extractor
+## Playwright media extractor
 
-`vidsrc_stream.py` is now a generic local Playwright + FFmpeg utility for inspecting a player domain you own or are authorized to access.
+`vidsrc_stream.py` loads an authorized player/embed URL with Chromium and watches normal browser network traffic for playable media. It also inspects dynamically available iframes, `<video>`/`<source>` elements, and inline script configuration for media URLs.
 
-The default player base URL is:
+It detects:
 
-```
-https://vidsrcme.ru
-```
+- HLS `.m3u8`
+- DASH `.mpd`
+- MP4/WebM/M4V/OGV
 
-It supports these media keys:
-
-```
-movie:12345
-tv:12345:1:3
-```
-
-Those become:
+The extractor writes the first discovered playable source to:
 
 ```
-https://vidsrcme.ru/embed/movie/12345
-https://vidsrcme.ru/embed/tv/12345/1/3
+public/vidsrc-streams.json
 ```
 
-Install the Python dependencies and Chromium once:
+The Reelhouse resolver already reads that file and hands the returned URL to the native Reelhouse player/HLS.js.
+
+### Install
 
 ```bash
 python -m pip install -r backend/requirements.txt
 npm run vidsrc:setup
 ```
 
-### Extract and wire a movie
+### Movie
 
 ```bash
 python scripts/vidsrc_stream.py \
   --media-key movie:12345 \
-  --no-download
+  --base-url https://vidsrcme.ru \
+  --allowed-host vidsrcme.ru
 ```
 
-### Extract and wire a TV episode
+### TV episode
 
 ```bash
 python scripts/vidsrc_stream.py \
   --media-key tv:12345:1:3 \
-  --no-download
+  --base-url https://vidsrcme.ru \
+  --allowed-host vidsrcme.ru
 ```
 
-The captured source is written to:
+### Direct authorized player URL
 
+```bash
+python scripts/vidsrc_stream.py \
+  "https://your-authorized-player.example/embed/movie/12345" \
+  --allowed-host your-authorized-player.example
 ```
-public/vidsrc-streams.json
-```
 
-The existing Reelhouse resolver reads that map and sends the returned direct MP4/video or HLS source to the custom player.
+The manifest records the source URL plus the browser Referer/User-Agent metadata observed during discovery. Those values are metadata for server-side use; browser JavaScript cannot freely set forbidden request headers such as `Referer`.
 
-### Save an authorized source locally
+### Debugging
+
+Use `--headed` locally when you need to see what the player is doing:
 
 ```bash
 python scripts/vidsrc_stream.py \
   --media-key movie:12345 \
-  -o ./tmp/movie.mp4
+  --base-url https://vidsrcme.ru \
+  --allowed-host vidsrcme.ru \
+  --headed
 ```
 
-The extractor observes normal browser network requests. It can capture direct video files such as MP4/WebM/M4V/OGV and HLS `.m3u8` playlists. It does not bypass DRM, authentication, paywalls, or other access controls.
-
-Requirements:
-- Python 3.10+
-- Playwright Chromium
-- FFmpeg available on PATH
-
-Run it again when an authorized source URL expires.
+The extractor does not decrypt DRM, extract license keys, bypass authentication, or defeat access controls.
