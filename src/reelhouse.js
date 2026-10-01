@@ -1,5 +1,4 @@
 import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
-import { TMDB_READ_TOKEN } from './config.js';
 import { registerPlugin } from '@capacitor/core';
 import Hls from 'hls.js';
 import { isNativeReelhouse, canDownloadNativeSource, downloadNativeMovie, getNativeDownloads, shareNativeDownload, deleteNativeDownload, openNativeDownload, makeCalendarEvent } from './native/downloads.js';
@@ -20,7 +19,7 @@ warn:sv('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/>')};
 const $=(s,e=document)=>e.querySelector(s),IMG='https://image.tmdb.org/t/p/';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let KEY=TMDB_READ_TOKEN,lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
+let KEY='',lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
 let nativeDownloads=isNativeReelhouse()?getNativeDownloads():[];
 let installPrompt=null;
 const WELCOME_KEY='rh:welcomeSeen';
