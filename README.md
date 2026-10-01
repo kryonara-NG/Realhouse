@@ -31,3 +31,6 @@ The same web build includes a manifest, service worker and installable app shell
 
 ### Search UI update
 - Compact search filters, live suggestions, mixed movie/series discovery, anime browsing, and series season/episode navigation are enabled.
+
+
+<!-- Vercel deployment includes the custom HLS playback wiring. -->
