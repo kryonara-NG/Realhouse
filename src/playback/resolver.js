@@ -1,4 +1,6 @@
-const CACHE_PREFIX='rh:resolver:v10:';
+import { API_BASE } from '../config.js';
+
+const CACHE_PREFIX='rh:resolver:v11:';
 const CACHE_TTL=30*60*1000;
 function readCache(key){try{const x=JSON.parse(localStorage.getItem(CACHE_PREFIX+key));if(x&&Date.now()-x.t<CACHE_TTL)return x.d}catch{}return null}
 function writeCache(key,d){try{localStorage.setItem(CACHE_PREFIX+key,JSON.stringify({t:Date.now(),d}))}catch{}}
@@ -19,7 +21,7 @@ async function internalMovieBoxSource(m,season=1,episode=1){
  const qs=new URLSearchParams({title:m.title||m.name,media_type:m.media_type==='tv'?'tv':'movie'});
  const year=(m.release_date||m.first_air_date||'').slice(0,4);if(year)qs.set('year',year);
  if(m.media_type==='tv'){qs.set('season',String(season||1));qs.set('episode',String(episode||1));}
- try{const r=await fetch('/api/moviebox-internal/stream?'+qs.toString(),{cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)return null;return normalizeInternal(await r.json(),m,season,episode)}catch{return null}
+ try{const r=await fetch((API_BASE||location.origin)+'/api/moviebox-internal/stream?'+qs.toString(),{cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)return null;return normalizeInternal(await r.json(),m,season,episode)}catch{return null}
 }
 export async function resolveMovieSource(m){
  const key='movie:'+m?.id,cached=readCache(key);if(cached)return cached;
