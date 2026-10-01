@@ -53,7 +53,7 @@ function jget(url,h,persist){
 function api(p,q={}){
  const u=new URL('/api/tmdb'+p,location.origin);
  for(const k in q)u.searchParams.set(k,q[k]);
- return jget(u.href,{},!/^\\/movie\\/\\d/.test(p));
+ return jget(u.href,{},!/^\/movie\/\d/.test(p));
 }
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
 const subtitlePrefs=()=>store.get(SUBS_KEY,['en']);
