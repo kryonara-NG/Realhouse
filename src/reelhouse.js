@@ -490,7 +490,7 @@ async function filmBtns(m,startAfterResolve=false){
  cur.source=source;cur.film=source.identifier||null;
  if(full){full.disabled=false;full.classList.add('on')}
  const d=$('#dlb');
- if(d&&source.identifier){d.hidden=false;d.dataset.dl=source.identifier;d.dataset.t=m.title}
+ if(d&&isNativeReelhouse()){d.hidden=false;d.dataset.dl='native';d.dataset.native='1';d.dataset.t=m.title;d.disabled=!canDownloadNativeSource(source);d.title=canDownloadNativeSource(source)?'Save this MP4 privately in the Reelhouse app':'Downloads require a direct MP4 stream'}
  const p=$('.poster');if(p&&!p.querySelector('.big'))p.insertAdjacentHTML('beforeend',`<button class="big" data-startp aria-label="Play">${I.play}</button>`);
  if(startAfterResolve)startFilm(source,titleOf(m));
 }
@@ -572,6 +572,12 @@ function wpClick(t){const b=t.closest('button,#sh');if(!b||!yp||!yp.getPlayerSta
   case'spd':{const r=[1,1.25,1.5,2,.75],n=r[(r.indexOf(yp.getPlaybackRate())+1)%r.length];yp.setPlaybackRate(n);b.textContent=n+'×';return true}
   case'fs':{const w=$('#wp');document.fullscreenElement?document.exitFullscreen():(w.requestFullscreen||w.webkitRequestFullscreen||(()=>toast('Fullscreen is not supported here'))).call(w);return true}}
  return false}
+async function startNativeDownload(){if(!isNativeReelhouse())return toast('Movie downloads are available in the Reelhouse app only.');const source=cur.source;if(!source)return toast('Play the movie once before downloading.');if(!canDownloadNativeSource(source))return toast('This title returned HLS, not a direct downloadable video file.');const button=$('#dlb');if(button){button.disabled=true;button.innerHTML=I.dl+'<span>Downloading…</span>';}addInbox({key:'download-start:'+String(cur.m?.id||Date.now()),title:'Download started',body:titleOf(cur.m||{})+' is downloading.',url:'#/list'});try{const item=await downloadNativeMovie({source,title:titleOf(cur.m||{}),season:cur.kind==='tv'?cur.season:null,episode:cur.kind==='tv'?cur.episode:null,onProgress:p=>{if(button&&p.percent!=null)button.innerHTML=I.dl+'<span>Downloading '+p.percent+'%</span>'}});nativeDownloads=getNativeDownloads();addInbox({key:'download-done:'+item.id,title:'Download complete',body:item.title+' is ready offline.',url:'#/list'});toast('Download complete');if(button){button.disabled=false;button.innerHTML=I.dl+'<span>Downloaded</span>'}}catch(e){toast(e?.message||'Download failed');if(button){button.disabled=false;button.innerHTML=I.dl+'<span>Download</span>'}}}
+async function shareNativeById(id){const item=getNativeDownloads().find(x=>x.id===id);if(!item)return toast('Downloaded file not found.');try{await shareNativeDownload(item)}catch(e){toast(e?.message||'Could not share that file.')}}
+async function openNativeById(id){const item=getNativeDownloads().find(x=>x.id===id);if(!item)return toast('Downloaded file not found.');try{const uri=await openNativeDownload(item);startFilm({url:uri,type:'mp4'},item.title)}catch{toast('Could not open that download.')}}
+async function deleteNativeById(id){const item=getNativeDownloads().find(x=>x.id===id);if(!item)return;try{await deleteNativeDownload(item);nativeDownloads=getNativeDownloads();mylist();toast('Download removed')}catch{toast('Could not remove download')}}
+function addReleaseReminder(title,date,overview){if(!date)return;if(isNativeReelhouse()){LocalNotifications.requestPermissions().then(async p=>{if(p.display!=='granted')throw new Error('Notification permission denied');await LocalNotifications.schedule({notifications:[{id:Math.floor(Math.random()*100000000),title:'Release day: '+title,body:'Your Reelhouse watch is ready.',schedule:{at:new Date(date+'T09:00:00')},extra:{url:'#/home'}}]});toast('Release reminder set');}).catch(()=>downloadCalendarFile(title,date,overview));}else downloadCalendarFile(title,date,overview)}
+function downloadCalendarFile(title,date,overview){const blob=new Blob([makeCalendarEvent({title,releaseDate:date,overview})],{type:'text/calendar'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=title.replace(/[^a-z0-9]+/gi,'-')+'-release.ics';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Calendar reminder file created')}
 function toggleAct(el){const k=el.dataset.tg,on=toggle(k,cur.m);el.classList.toggle('on',on);
  el.innerHTML=(k==='list'?(on?I.bmF:I.bm):(on?I.heartF:I.heart))+`<span>${k==='list'?(on?'Saved':'Save'):(on?'Favorited':'Favorite')}</span>`;if(location.hash==='#/list')mylist()}
 const modal=$('#modal');
@@ -613,7 +619,7 @@ document.addEventListener('click',e=>{const t=e.target;
  const arr=t.closest('.arr');if(arr){const s=arr.parentNode.querySelector('.sc');s.scrollBy({left:(arr.classList.contains('l')?-1:1)*s.clientWidth*.8,behavior:'smooth'});return}
  const pl=t.closest('[data-play]');if(pl){openDetail(pl.dataset.play,'trailer');return}
  const fi=t.closest('[data-ia]');if(fi){openFilm(fi.dataset.ia,fi.dataset.t);return}
- const dl=t.closest('[data-dl]');if(dl&&dl.dataset.dl){download(dl.dataset.dl,dl.dataset.t);return}
+ const dl=t.closest('[data-dl]');if(dl&&dl.dataset.dl){download(dl.dataset.dl,dl.dataset.t);return}\n const ns=t.closest('[data-native-share]');if(ns){shareNativeById(ns.dataset.nativeShare);return}\n const no=t.closest('[data-native-open]');if(no){openNativeById(no.dataset.nativeOpen);return}\n const nd=t.closest('[data-native-delete]');if(nd){deleteNativeById(nd.dataset.nativeDelete);return}\n const ur=t.closest('[data-upcoming-id]');if(ur){addReleaseReminder(ur.dataset.upcomingTitle,ur.dataset.upcomingDate,ur.dataset.upcomingOverview);return}\n const pe=t.closest('[data-person]');if(pe){location.hash='#/person/'+pe.dataset.person;return}
  const tg=t.closest('[data-tg]');if(tg&&cur.m&&!cur.m.ia){toggleAct(tg);return}
  const mo=t.closest('[data-more]');if(mo){const o=$('#ovw');o.classList.toggle('open');mo.textContent=o.classList.contains('open')?'Less':'More';return}
  if(t.closest('[data-close]')){closeDetail();return}
