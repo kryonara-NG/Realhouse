@@ -71,7 +71,7 @@ function route(){
  const [r,sub]=(location.hash||'#/home').slice(2).split('/');
  document.querySelectorAll('#tab a').forEach(a=>a.classList.toggle('on',a.dataset.r===r));
  clearInterval(cur.hero);scrollTo(0,0);
- ({home,search:browse,list:mylist,me,app}[r]||home)(sub)}
+ ({home,search:browse,list:mylist,me,app}[r]||home)(sub);renderNotificationBadge()}
 addEventListener('hashchange',route);
 addEventListener('scroll',()=>$('#nav').classList.toggle('solid',scrollY>60),{passive:true});
 
