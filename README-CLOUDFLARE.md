@@ -35,3 +35,8 @@ npx wrangler dev
 ```
 
 The Worker deployment is intentionally separate from the Cloudflare Pages Functions directory so the same MovieBox resolver can also be used by Pages-compatible deployments.
+
+
+### Required catalog environment
+
+Set `TMDB_READ_TOKEN` as a Worker secret/variable. The browser now calls `/api/tmdb/*`; the Worker forwards those requests to TMDB with the server-side Bearer token. Do not put the token in a `VITE_*` variable for new deployments.
