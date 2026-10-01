@@ -30,8 +30,15 @@ function mappedSource(m,season,episode){
 }
 
 const DEFAULT_BASE='https://vidsrc.sh';
-const MIRRORS=['https://vidsrc.sh','https://vidsrc2.ru','https://vidsrc.ir','https://vidsrcme.ru'];
-const VIDSRC_BASE=String(globalThis.REELHOUSE_VIDSRC_BASE||import.meta.env.VITE_VIDSRC_BASE||DEFAULT_BASE).replace(/\/$/,'');
+const MIRRORS=['https://vidsrc.sh','https://vidsrc2.ru','https://vidsrc.ir'];
+// Put the actual custom VidSrc domain in VITE_VIDSRC_BASE (or set
+// REELHOUSE_VIDSRC_BASE at runtime). The custom domain must be the domain
+// you configured with VidSrc; vidsrc-ip.com is the DNS CNAME target, not the
+// player URL. Official mirrors remain fallback sources only when the custom
+// domain cannot answer.
+const configuredBase=String(globalThis.REELHOUSE_VIDSRC_BASE||import.meta.env.VITE_VIDSRC_BASE||'').trim().replace(/\/$/,'');
+const VIDSRC_BASE=configuredBase||DEFAULT_BASE;
+export const VIDSRC_CUSTOM_DOMAIN=Boolean(configuredBase);
 export const VIDSRC_MIRRORS=[VIDSRC_BASE,...MIRRORS.filter(x=>x!==VIDSRC_BASE)];
 
 function vidsrcUrl(path,params={}){
