@@ -72,14 +72,14 @@ function toggle(k,m){const on=has(k,m.id);lists[k]=on?lists[k].filter(x=>x.id!==
 /* ---------- routing ---------- */
 const view=$('#view');
 function route(){
- const [r,sub]=(location.hash||'#/home').slice(2).split('/');
+ const [r,sub,sub2]=(location.hash||'#/home').slice(2).split('/');
  document.querySelectorAll('#tab a').forEach(a=>a.classList.toggle('on',a.dataset.r===r));
  clearInterval(cur.hero);scrollTo(0,0);
- ({home,search:browse,list:mylist,me,app}[r]||home)(sub);renderNotificationBadge()}
+ ({home,search:browse,list:mylist,me,app,person:renderPerson}[r]||home)(sub,sub2);renderNotificationBadge()}
 addEventListener('hashchange',route);
 addEventListener('scroll',()=>$('#nav').classList.toggle('solid',scrollY>60),{passive:true});
 
-/* ---------- home ---------- */
+async function renderPerson(id){if(!id)return home();view.innerHTML='<div class="pg person-page"><p class="empty">Loading Realhouse DNA…</p></div>';try{const p=await api('/person/'+id,{append_to_response:'combined_credits,external_ids'});const credits=(p.combined_credits?.cast||[]).filter(x=>x.id).sort((a,b)=>String(b.release_date||b.first_air_date||'').localeCompare(String(a.release_date||a.first_air_date||'')));const movies=credits.filter(x=>x.media_type==='movie');const shows=credits.filter(x=>x.media_type==='tv');const years=credits.map(x=>String(x.release_date||x.first_air_date||'').slice(0,4)).filter(Boolean);const span=years.length?(Math.max(...years.map(Number))-Math.min(...years.map(Number))+1):0;view.innerHTML='<div class="pg person-page"><button class="chip" onclick="history.back()">‹ Back</button><section class="person-hero"><div class="person-photo">'+(p.profile_path?'<img src="'+IMG+'w500'+p.profile_path+'" alt="">':'<span>R</span>')+'</div><div><span class="welcome-kicker">REALHOUSE DNA</span><h1>'+esc(p.name)+'</h1><p class="mt">'+esc(p.known_for_department||'Screen talent')+' · '+(span||'—')+' years tracked</p><div class="person-stats"><b>'+credits.length+'<small>Total credits</small></b><b>'+movies.length+'<small>Movies</small></b><b>'+shows.length+'<small>Series</small></b></div></div></section><section class="dna-panel"><h2>Their DNA</h2><p>'+esc((p.biography||'No biography available.').slice(0,1100))+'</p></section><h2>Filmography</h2><div class="library-list person-credits">'+credits.slice(0,80).map(x=>libraryRow(x,'saved')).join('')+'</div></div>'}catch{view.innerHTML='<div class="pg"><p class="empty">Could not load this person right now.</p></div>'}}\n/* ---------- home ---------- */
 const CATALOG_SECTIONS=[
  {id:'trending',title:'Trending now',path:'/trending/all/week',kind:'mixed'},
  {id:'popular-movies',title:'Popular movies',path:'/movie/popular',kind:'movie'},
@@ -501,7 +501,7 @@ async function openSeriesDetail(id,auto){
  if(cur.tok!==tok)return;
  if(!m){box.innerHTML=`<div class="wpg"><div class="wp">${topbar}</div><div class="wi"><p class="mt" style="margin-bottom:12px">Could not load this series. Check your connection.</p><button class="btn" data-retry>Retry</button></div></div>`;return}
  cur.m=m;cur.tr=null;cur.kind='tv';cur.seriesId=id;cur.season=m.seasons?.find(s=>s.season_number>0)?.season_number??0;
- const cast=(m.credits?.cast||[]).slice(0,14).map(c=>`<div class="cm">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc((c.name||'?')[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character||'')}</small></div>`).join('');
+ const cast=(m.credits?.cast||[]).slice(0,14).map(c=>`<button class="cm" data-person="${c.id}">${c.profile_path?`<img loading="lazy" src="${IMG}w185${c.profile_path}" alt="">`:`<div>${esc((c.name||'?')[0])}</div>`}<b>${esc(c.name)}</b><small>${esc(c.character||'')}</small></div>`).join('');
  const bg=m.backdrop_path?IMG+'w780'+m.backdrop_path:m.poster_path?IMG+'w500'+m.poster_path:'';
  const isS=has('list',m.id),isF=has('fav',m.id);
  box.innerHTML=`<div class="wpg series-page"><div class="wp" id="wp"><div class="poster" style="background-image:url(${bg})"><button class="big" data-startp aria-label="Play series">${I.play}</button></div>${topbar}</div>
