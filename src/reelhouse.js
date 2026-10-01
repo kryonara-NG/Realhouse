@@ -20,7 +20,7 @@ warn:sv('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.5"/>')};
 const $=(s,e=document)=>e.querySelector(s),IMG='https://image.tmdb.org/t/p/';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let KEY='',lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{})},acct=store.get('acct',null),session=store.get('sess',false);
+let KEY='',lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store.get('recent',[]),dl:store.get('dl',[])},cur={},S={rotate:store.get('rotate',true),theme:store.get('theme','light'),prog:store.get('prog',{}),autoplay:store.get('autoplay',true),defaultSpeed:Number(store.get('defaultSpeed',1))||1,language:store.get('language','en'),dataSaver:store.get('dataSaver',false),reducedMotion:store.get('reducedMotion',false),mature:store.get('mature',false),quality:store.get('quality','auto'),inlineTrailers:store.get('inlineTrailers',true)},acct=store.get('acct',null),session=store.get('sess',false);
 let nativeDownloads=isNativeReelhouse()?getNativeDownloads():[];
 let installPrompt=null;
 const WELCOME_KEY='rh:welcomeSeen';
@@ -40,7 +40,7 @@ function openIndependence(){const box=$('#independenceModal');if(!box)return;con
 function closeIndependence(){const box=$('#independenceModal');if(!box)return;box.classList.remove('on');box.setAttribute('aria-hidden','true');document.body.classList.remove('celebration-open')}
 
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
-const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();
+const applyTheme=()=>{document.documentElement.dataset.theme=S.theme==='system'?(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):S.theme};applyTheme();document.documentElement.classList.toggle('reduce-motion',S.reducedMotion);
 const mem=new Map();let pend=0,bt;
 const bar=d=>{pend+=d;const b=$('#bar');if(!b)return;clearTimeout(bt);if(pend>0){b.classList.add('on');b.style.width='70%'}else{b.style.width='100%';bt=setTimeout(()=>{b.classList.remove('on');b.style.width='0'},250)}};
 function jget(url,h,persist){
@@ -405,8 +405,23 @@ const back=`<a class="chip" href="#/me">${I.l} Me</a>`;
 function me(sub){const on=session&&acct;
  if(sub==='recent'){const L=lists.recent;return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Recently watched</h1><div class="grid">${L.map(rc).join('')}</div>${L.length?'':'<p class="empty">Trailers and films you play show up here.</p>'}</div>`}
  if(sub==='downloads'){const L=lists.dl;return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Downloads</h1><p class="mt" style="margin-bottom:16px">Free films use the browser download flow. If your browser opens the media instead, use its built-in download control.</p>${L.map(x=>`<div class="li"><div><b>${esc(x.title)}</b><small class="mt" style="display:block">${new Date(x.at).toLocaleDateString()}</small></div><span style="flex:1"></span><a class="chip" href="${esc(x.url)}" target="_blank" rel="noopener">Open file</a><button class="chip" data-act="rmdl" data-id="${esc(x.id)}">Remove</button></div>`).join('')}${L.length?'':'<p class="empty">No downloads yet. Free full movies have a Download button on their details page.</p>'}</div>`}
- if(sub==='settings')return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Settings</h1><h3 class="sh">Appearance</h3><div class="seg">${['light','dark','system'].map(v=>`<button class="${S.theme===v?'on':''}" data-act="theme" data-v="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div><h3 class="sh">Playback</h3><label class="li"><span>Rotate featured movies on Home</span><span style="flex:1"></span><input type="checkbox" data-act="rotate" ${S.rotate?'checked':''}></label><div class="li"><div><b>Subtitle language</b><small class="mt">Used as the default when captions are available.</small></div><span style="flex:1"></span><button class="chip" data-act="subs">${esc(subtitlePrefs().join(', '))}</button></div><h3 class="sh">Data</h3><button class="mi" data-act="clear">Clear watch history</button><p class="mt" style="font-size:13px;margin-top:14px">Movie info by TMDB. Free films and downloads come from the Internet Archive public-domain library. Accounts and lists are stored only in this browser.</p></div>`;
- const head=on?`<div class="prof"><div class="avw"><div class="av">${acct.avatar?`<img src="${acct.avatar}" alt="">`:esc(acct.name[0].toUpperCase())}</div><label class="cam" title="Change photo">${I.cam}<input type="file" id="av" accept="image/*" hidden></label></div><div><h1 style="font-size:28px;margin:0">${esc(acct.name)}</h1><div class="mt">${esc(acct.email)}</div><button class="chip" data-act="name" style="margin-top:8px">Edit name</button></div></div>`
+ if(sub==='settings')return view.innerHTML=`<div class="pg">${back}<h1 style="margin-top:14px">Settings</h1>
+<h3 class="sh">Appearance</h3><div class="seg">${['light','dark','system'].map(v=>`<button class="${S.theme===v?'on':''}" data-act="theme" data-v="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div>
+<label class="li"><div><b>Reduce motion</b><small class="mt">Minimize animations and transitions.</small></div><span style="flex:1"></span><input type="checkbox" data-act="reducedMotion" ${S.reducedMotion?'checked':''}></label>
+<h3 class="sh">Playback</h3>
+<label class="li"><div><b>Autoplay</b><small class="mt">Start supported playback automatically.</small></div><span style="flex:1"></span><input type="checkbox" data-act="autoplay" ${S.autoplay?'checked':''}></label>
+<label class="li"><div><b>Rotate featured movies</b><small class="mt">Cycle the featured selection on Home.</small></div><span style="flex:1"></span><input type="checkbox" data-act="rotate" ${S.rotate?'checked':''}></label>
+<div class="li"><div><b>Default playback speed</b><small class="mt">Used when a native video starts.</small></div><span style="flex:1"></span><select data-act="speed"><option value="0.75" ${S.defaultSpeed===.75?'selected':''}>0.75×</option><option value="1" ${S.defaultSpeed===1?'selected':''}>1×</option><option value="1.25" ${S.defaultSpeed===1.25?'selected':''}>1.25×</option><option value="1.5" ${S.defaultSpeed===1.5?'selected':''}>1.5×</option><option value="2" ${S.defaultSpeed===2?'selected':''}>2×</option></select></div>
+<div class="li"><div><b>Subtitle languages</b><small class="mt">Pick up to three preferred caption languages.</small></div><span style="flex:1"></span><button class="chip" data-act="subs">${esc(subtitlePrefs().join(', '))}</button></div>
+<h3 class="sh">Content</h3>
+<div class="li"><div><b>Content language</b><small class="mt">Preferred metadata language.</small></div><span style="flex:1"></span><select data-act="language"><option value="en" ${S.language==='en'?'selected':''}>English</option><option value="fr" ${S.language==='fr'?'selected':''}>Français</option><option value="es" ${S.language==='es'?'selected':''}>Español</option><option value="pt" ${S.language==='pt'?'selected':''}>Português</option><option value="ar" ${S.language==='ar'?'selected':''}>العربية</option><option value="ja" ${S.language==='ja'?'selected':''}>日本語</option><option value="ko" ${S.language==='ko'?'selected':''}>한국어</option></select></div>
+<label class="li"><div><b>Mature content</b><small class="mt">Allow adult-oriented catalog results where the provider supplies them.</small></div><span style="flex:1"></span><input type="checkbox" data-act="mature" ${S.mature?'checked':''}></label>
+<h3 class="sh">Data &amp; performance</h3>
+<label class="li"><div><b>Data saver</b><small class="mt">Prefer lighter poster images and reduce non-essential preloading.</small></div><span style="flex:1"></span><input type="checkbox" data-act="dataSaver" ${S.dataSaver?'checked':''}></label>
+<button class="mi" data-act="clear">Clear watch history</button><button class="mi" data-act="cache">Clear cached catalog data</button>
+<h3 class="sh">Notifications</h3><div class="li"><div><b>Movie notifications</b><small class="mt">Control release and catalog notifications.</small></div><span style="flex:1"></span><button class="chip" data-act="${notificationState().enabled?'notifsoff':'notifson'}">${notificationState().enabled?'Turn off':'Enable'}</button></div>
+<h3 class="sh">Privacy</h3><button class="mi" data-act="export">Export my local data</button><button class="mi" data-act="reset">Reset Reelhouse on this device</button>
+<p class="mt" style="font-size:13px;margin-top:14px">Lists, preferences and playback progress are stored locally on this device. Account sync requires a real account backend.</p></div>`; const head=on?`<div class="prof"><div class="avw"><div class="av">${acct.avatar?`<img src="${acct.avatar}" alt="">`:esc(acct.name[0].toUpperCase())}</div><label class="cam" title="Change photo">${I.cam}<input type="file" id="av" accept="image/*" hidden></label></div><div><h1 style="font-size:28px;margin:0">${esc(acct.name)}</h1><div class="mt">${esc(acct.email)}</div><button class="chip" data-act="name" style="margin-top:8px">Edit name</button></div></div>`
  :`<div class="hi"><h1>Your seat is waiting</h1><p>Create a free account to keep your list and favorites, pick films up where you left off, and make the profile yours.</p><div><button class="btn" data-act="up">Sign up</button><button class="btn" data-act="in">Log in</button></div></div>`;
  view.innerHTML=`<div class="pg">${head}<div class="st"><div><b>${lists.list.length}</b>Saved</div><div><b>${lists.fav.length}</b>Favorites</div><div><b>${lists.recent.length}</b>Watched</div></div>
  <a class="mi" href="#/me/recent">${ICO.recent}<span>Recently watched<small>Pick up where you stopped</small></span><em>${I.r}</em></a>
@@ -437,6 +452,15 @@ function act(n,el){haptic().catch(()=>{});switch(n){
  case'savename':acct.name=$('#nn').value.trim()||acct.name;store.set('acct',acct);act('sc');return me();
  case'theme':S.theme=el.dataset.v;store.set('theme',S.theme);applyTheme();return me('settings');
  case'rotate':S.rotate=el.checked;store.set('rotate',S.rotate);return;
+ case'autoplay':S.autoplay=el.checked;store.set('autoplay',S.autoplay);return;
+ case'reducedMotion':S.reducedMotion=el.checked;store.set('reducedMotion',S.reducedMotion);document.documentElement.classList.toggle('reduce-motion',S.reducedMotion);return;
+ case'mature':S.mature=el.checked;store.set('mature',S.mature);return;
+ case'dataSaver':S.dataSaver=el.checked;store.set('dataSaver',S.dataSaver);return;
+ case'speed':S.defaultSpeed=Number(el.value)||1;store.set('defaultSpeed',S.defaultSpeed);return;
+ case'language':S.language=el.value||'en';store.set('language',S.language);toast('Language preference saved');return;
+ case'cache':try{Object.keys(localStorage).filter(k=>k.startsWith('c:')||k.startsWith('rh:resolver:')).forEach(k=>localStorage.removeItem(k));mem.clear();toast('Cached catalog data cleared')}catch{toast('Could not clear the cache')}return;
+ case'export':{const payload={version:1,exportedAt:new Date().toISOString(),lists,settings:S,subtitlePreferences:subtitlePrefs()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='reelhouse-settings.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Local data exported');return}
+ case'reset':{if(!confirm('Reset Reelhouse data on this device? This clears lists, history, preferences and the local account.'))return;Object.keys(localStorage).filter(k=>k.startsWith('rh:')||['list','fav','recent','dl','prog','theme','rotate','acct','sess'].includes(k)).forEach(k=>localStorage.removeItem(k));location.reload();return}
  case'subs':return sheet(`<h1 style="font-size:30px">Subtitle languages</h1><p class="mt">Pick up to three, in the order you prefer.</p><div class="chips" id="subChoices">${[['en','English'],['fr','Français'],['es','Español'],['de','Deutsch'],['pt','Português'],['ja','日本語'],['ko','한국어'],['ar','العربية']].map(([v,l])=>`<button class="chip ${subtitlePrefs().includes(v)?'on':''}" data-sub="${v}">${l}</button>`).join('')}</div><button class="btn pri" data-act="savesubs" style="margin-top:16px">Save preferences</button>`);
  case'savesubs':{const vals=[...document.querySelectorAll('[data-sub].on')].map(x=>x.dataset.sub).slice(0,3);store.set(SUBS_KEY,vals.length?vals:['en']);act('sc');toast('Subtitle preferences saved');return me('settings')}
  case'clear':lists.recent=[];S.prog={};store.set('recent',[]);toast('History cleared');return me('settings');
@@ -522,8 +546,9 @@ function mountNativeVideo(url,title,source={}){
   v.src=url;
  }
  v.volume=.8;
+ v.playbackRate=Math.max(.25,Math.min(4,Number(S.defaultSpeed)||1));
  v.addEventListener('loadedmetadata',()=>spin(0),{once:true});
- const playAttempt=v.play();
+ const playAttempt=S.autoplay?v.play():Promise.resolve();
  if(playAttempt?.catch)playAttempt.catch(()=>{});
  wake();
 }
