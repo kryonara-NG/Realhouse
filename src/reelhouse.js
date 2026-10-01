@@ -493,10 +493,7 @@ function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'
 function mountVidSrc(source,title){
  const w=$('#wp');if(!w)return;
  const u=source?.url;if(!u)return;
- const currentOrigin=(()=>{try{return new URL(u).origin}catch{return ''}})();
- const mirrors=VIDSRC_MIRRORS.slice(0,6);
- const buttons=mirrors.map((m,i)=>`<button class="chip ${m===currentOrigin?'on':''}" data-vidsrc-mirror="${esc(m)}">${esc(mirrorName(m,i))}</button>`).join('');
- w.innerHTML=`<div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-progress" id="playerProgress"><span id="playerProgressFill"></span></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><div class="player-source-bar"><span>Player source</span>${buttons}</div><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" referrerpolicy="strict-origin-when-cross-origin"></iframe>${topbar}`;
+ w.innerHTML=`<div class="reelhouse-player-shell"><div class="cinema-grain" aria-hidden="true"></div><div class="cinema-vignette" aria-hidden="true"></div><div class="player-progress" id="playerProgress"><span id="playerProgressFill"></span></div><div class="player-meta"><span class="player-live-dot"></span><span>${esc(title||'Now playing')}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div><div class="vidsrc-frame-wrap"><iframe id="vidsrc-frame" title="${esc(title||'Reelhouse player')}" src="${esc(u)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen frameborder="0" scrolling="no" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>${topbar}</div>`;
  const onMessage=e=>{
    const frame=$('#vidsrc-frame');if(!frame||e.source!==frame.contentWindow)return;
    let frameOrigin='';try{frameOrigin=new URL(frame.src).origin}catch{}
