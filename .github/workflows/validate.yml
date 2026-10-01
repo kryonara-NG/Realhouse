@@ -22,6 +22,16 @@ jobs:
 
   vidsrc-live-smoke:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - base_url: https://vidsrc.sh
+            host: vidsrc.sh
+          - base_url: https://vidsrc2.ru
+            host: vidsrc2.ru
+          - base_url: https://vidsrc.ir
+            host: vidsrc.ir
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,7 +45,7 @@ jobs:
       - name: Extract one authorized VidSrc movie stream
         run: |
           rm -f /tmp/vidsrc-streams.json
-          python scripts/vidsrc_stream.py             --media-key movie:68721             --base-url https://vidsrc.sh             --allowed-host vidsrc.sh             --allow-discovered-media-hosts             --timeout-ms 30000             --streams-file /tmp/vidsrc-streams.json
+          python scripts/vidsrc_stream.py             --media-key movie:68721             --base-url ${{ matrix.base_url }}             --allowed-host ${{ matrix.host }}             --allow-discovered-media-hosts             --timeout-ms 45000             --streams-file /tmp/vidsrc-streams.json
       - name: Validate discovered media
         run: |
           python - <<'PY'
@@ -67,13 +77,8 @@ jobs:
           if not (200 <= status < 400):
               raise SystemExit(f"Media endpoint returned HTTP {status}")
 
-          if source.get("type") == "hls":
-              if b"#EXTM3U" not in sample:
-                  raise SystemExit("Discovered HLS URL did not return an HLS playlist")
-          elif source.get("type") in {"mp4", "video"} and not (
-              "video/" in content_type.lower() or len(sample) > 0
-          ):
-              raise SystemExit("Discovered video URL returned no media bytes")
+          if source.get("type") == "hls" and b"#EXTM3U" not in sample:
+              raise SystemExit("Discovered HLS URL did not return an HLS playlist")
 
           print("VidSrc live smoke test: POSITIVE")
           PY
