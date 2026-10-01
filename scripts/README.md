@@ -4,28 +4,74 @@
 
 `import_scrapper.py` imports catalog/page-link output from the Scrapper project. It does not extract or download video streams.
 
-## Local HLS stream utility
+## First-party video extractor
 
-`vidsrc_stream.py` is a local Playwright + FFmpeg utility for inspecting an authorized player URL and capturing an HLS playlist.
+`vidsrc_stream.py` is now a generic local Playwright + FFmpeg utility for inspecting a player domain you own or are authorized to access.
 
-Install the Python dependencies, install Chromium once, then run:
+The default player base URL is:
+
+```
+https://pl.realhouse.stream
+```
+
+It supports these media keys:
+
+```
+movie:12345
+tv:12345:1:3
+```
+
+Those become:
+
+```
+https://pl.realhouse.stream/embed/movie/12345
+https://pl.realhouse.stream/embed/tv/12345/1/3
+```
+
+Install the Python dependencies and Chromium once:
 
 ```bash
 python -m pip install -r backend/requirements.txt
 npm run vidsrc:setup
-python scripts/vidsrc_stream.py "https://example.com/player" -o ./tmp/movie.mp4
 ```
 
-Or:
+### Extract and wire a movie
 
 ```bash
-npm run vidsrc:extract -- "https://example.com/player" -o ./tmp/movie.mp4
+python scripts/vidsrc_stream.py \
+  --media-key movie:12345 \
+  --no-download
 ```
+
+### Extract and wire a TV episode
+
+```bash
+python scripts/vidsrc_stream.py \
+  --media-key tv:12345:1:3 \
+  --no-download
+```
+
+The captured source is written to:
+
+```
+public/vidsrc-streams.json
+```
+
+The existing Reelhouse resolver reads that map and sends the returned direct MP4/video or HLS source to the custom player.
+
+### Save an authorized source locally
+
+```bash
+python scripts/vidsrc_stream.py \
+  --media-key movie:12345 \
+  -o ./tmp/movie.mp4
+```
+
+The extractor observes normal browser network requests. It can capture direct video files such as MP4/WebM/M4V/OGV and HLS `.m3u8` playlists. It does not bypass DRM, authentication, paywalls, or other access controls.
 
 Requirements:
 - Python 3.10+
 - Playwright Chromium
 - FFmpeg available on PATH
 
-The utility is intentionally local. The Vite/Vercel frontend does not launch a browser or FFmpeg process. The captured HLS URL is written to `public/vidsrc-streams.json`, where the Reelhouse resolver picks it up and sends it to the custom video player. Use a `movie:<tmdb-id>` key or `tv:<tmdb-id>:<season>:<episode>` key. Run the extractor again when a captured URL expires.
-Use it only with media you are authorized to access/download.
+Run it again when an authorized source URL expires.
