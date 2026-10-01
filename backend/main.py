@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 app = FastAPI(title="Real House Search API", version="1.0.0")
+from backend.moviebox_internal import register_routes as register_moviebox_internal_routes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -165,3 +166,6 @@ def api_entry(
     if route != "moviebox-stream":
         return {"ok": True, "service": "Realhouse API"}
     return moviebox_stream(title=title, year=year, media_type=media_type, season=season, episode=episode)
+
+
+register_moviebox_internal_routes(app)
