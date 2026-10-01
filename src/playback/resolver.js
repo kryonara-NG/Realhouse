@@ -28,6 +28,32 @@ async function extractedSource(m,season,episode){
     return {url,type:/\.m3u8(?:$|\?)/i.test(url)?'hls':'mp4',source:'vidsrc-extracted',tmdb_id:m?.id,season,episode,title:m?.title||m?.name||'Movie'};
   }catch{return null}
 }
+
+async function archiveDirectSource(m){
+  if(!m?.title)return null;
+  try{
+    const q=new URL('https://archive.org/advancedsearch.php');
+    const title=String(m.title).replace(/["\\]/g,' ').trim();
+    q.searchParams.set('q','mediatype:movies AND title:"'+title+'" AND (licenseurl:* OR rights:"Public Domain")');
+    ['identifier','title','year','date','licenseurl','rights'].forEach(f=>q.searchParams.append('fl[]',f));
+    q.searchParams.set('rows','8');q.searchParams.set('output','json');
+    const r=await fetch(q.href,{cache:'no-store'});if(!r.ok)return null;
+    const docs=(await r.json())?.response?.docs||[];
+    const candidates=docs.filter(x=>String(x?.licenseurl||x?.rights||'').toLowerCase().includes('public domain')||String(x?.licenseurl||'').toLowerCase().includes('creativecommons.org/licenses/')||String(x?.licenseurl||'').toLowerCase().includes('creativecommons.org/publicdomain/'));
+    for(const d of candidates){
+      const id=d?.identifier;if(!id)continue;
+      const meta=await fetch('https://archive.org/metadata/'+encodeURIComponent(id),{cache:'no-store'});if(!meta.ok)continue;
+      const files=(await meta.json())?.files||[];
+      const f=files.find(x=>/\.(mp4|m4v|webm|ogv)$/i.test(String(x?.name||''))&&!/trailer|sample|preview/i.test(String(x?.name||'')));
+      if(f?.name){
+        const parts=String(f.name).split('/').map(encodeURIComponent).join('/');
+        return {url:'https://archive.org/download/'+encodeURIComponent(id)+'/'+parts,type:'mp4',source:'archive-direct',identifier:id,title:m.title};
+      }
+    }
+  }catch{}
+  return null;
+}
+
 function mappedSource(m,season,episode){
   const map=directMap();
   const keys=[
@@ -102,6 +128,8 @@ export async function resolveMovieSource(m){
   const cached=readCache(key);if(cached)return cached;
   const extracted=await extractedSource(m);
   if(extracted){const result={...extracted,status:'ready'};writeCache(key,result);return result;}
+  const archive=await archiveDirectSource(m);
+  if(archive){const result={...archive,status:'ready'};writeCache(key,result);return result;}
   const mapped=mappedSource(m);
   if(mapped){const result={...mapped,status:'ready'};writeCache(key,result);return result;}
   // Do not turn an unresolved title into an iframe source.
