@@ -1,4 +1,4 @@
-import { resolveMovieSource, resolveEpisodeSource, VIDSRC_MIRRORS } from './playback/resolver.js';
+import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
 import { TMDB_READ_TOKEN } from './config.js';
 import { registerPlugin } from '@capacitor/core';
 import Hls from 'hls.js';
@@ -499,50 +499,11 @@ function mount(inner){const w=$('#wp');w.innerHTML=inner+ctl;w.classList.remove(
 function showErr(msg,key){spin(0);const e=$('#perr');if(!e)return;e.innerHTML=`${I.warn}<div>${msg}</div><div><button class="btn" data-retry>Retry</button>${key?` <a class="btn" href="https://www.youtube.com/watch?v=${key}" target="_blank" rel="noopener">${I.ext} Open trailer</a>`:''}</div>`;e.classList.add('on')}
 function trailerVideo(m){const v=(m?.videos?.results||[]).filter(x=>x.site==='YouTube'&&x.key);return v.find(x=>x.type==='Trailer'&&x.official)||v.find(x=>x.type==='Trailer')||v.find(x=>x.type==='Teaser')||v[0]||null}
 function mountTrailer(video,title){
- const w=$('#wp');if(!w||!video?.key)return;
+ const w=$('#wp');if(!w)return;
  killPlayer();
- const src='https://www.youtube.com/embed/'+encodeURIComponent(video.key)+'?autoplay=1&playsinline=1&rel=0&controls=1&origin='+encodeURIComponent(location.origin);
- w.innerHTML='<div class="player-exit">'+topbar+'</div><div class="native-player trailer-player"><iframe id="trailer-frame" src="'+src+'" title="'+esc(title||'Trailer')+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
- remember(cur.m);
+ w.innerHTML='<div class="player-exit">'+topbar+'</div><div class="native-player trailer-player"><div class="source-loading"><strong>Native-only mode</strong><span>Trailers are disabled because Reelhouse no longer uses embedded video players.</span></div></div>';
 }
-async function startTrailer(){
- const t=trailerVideo(cur.m);
- if(!t){mount('<div class="source-loading"><div class="source-loader"></div><strong>Trailer unavailable</strong><span>Choose the full movie to watch.</span></div>');return}
- mountTrailer(t,titleOf(cur.m));
-}
-function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'');return h.includes('vidsrc')?('Source '+(i+1)):h}catch{return 'Source '+(i+1)}}
-function mountNativeVideo(url,title,source={}){
- const w=$('#wp');if(!w||!url)return;
- const safeTitle=title||'Now playing';
- const mediaType=/\\.m3u8(?:$|\\?)/i.test(url)?'HLS':'Video';
- w.innerHTML=`<div class="native-player custom-player" tabindex="0" data-media-type="${mediaType}"><video id="vd" playsinline preload="metadata" autoplay aria-label="${esc(safeTitle)}"></video><div class="native-player-title"><span class="player-live-dot"></span><span>${esc(safeTitle)}</span><span class="player-file-badge">DIRECT ${mediaType}</span></div>${ctl}</div>`;
- const v=$('#vd');if(!v)return;
- const shell=w.querySelector('.custom-player');
- if(/\\.m3u8(?:$|\\?)/i.test(url)&&!v.canPlayType('application/vnd.apple.mpegurl')){
-   if(Hls.isSupported()){
-     cur.hls=new Hls({enableWorker:true});
-     cur.hls.loadSource(url);
-     cur.hls.attachMedia(v);
-     cur.hls.on(Hls.Events.MANIFEST_PARSED,()=>{spin(0);populateQualityMenu()});
-     cur.hls.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal){try{cur.hls.destroy()}catch{}cur.hls=null;showErr('The video stream could not be played.') }});
-   }else{showErr('This browser cannot play this video stream.');return}
- }else{v.src=url}
- yp=vAdapter(v);pm={id:source?.progressKey||cur.m?.id||source?.id||source?.tmdb_id||source?.url||'player'};v.volume=.8;
- const t=Number(S.prog[pm.id]||0);
- if(t>8)v.addEventListener('loadedmetadata',()=>{try{showResumePrompt(t)}catch{}},{once:true});
- const save=()=>{if(pm?.id&&Number.isFinite(v.currentTime)){const d=v.duration||0;S.prog[pm.id]=d&&v.currentTime/d>.96?0:v.currentTime;store.set('prog',S.prog);if(cur.m)remember(cur.m)}};
- v.addEventListener('timeupdate',save,{passive:true});
- v.addEventListener('loadedmetadata',()=>updatePlayerUI(),{once:true});
- v.addEventListener('durationchange',updatePlayerUI,{passive:true});
- v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1);wake()});
- v.addEventListener('canplay',()=>spin(0));v.addEventListener('pause',()=>setPP(2));
- v.addEventListener('ended',()=>{setPP(0);if(pm?.id){S.prog[pm.id]=0;store.set('prog',S.prog)}showNextUp()});
- v.addEventListener('error',()=>showErr('Playback failed. The selected video file is unavailable or unsupported.'));
- v.addEventListener('dblclick',e=>{const x=e.clientX<shell.clientWidth/2?-10:10;v.currentTime=Math.max(0,Math.min(v.duration||Infinity,v.currentTime+x));toast((x<0?'−10':'+'+x)+' seconds')});
- shell?.addEventListener('mousemove',wake);shell?.addEventListener('touchstart',wake,{passive:true});
- remember(cur.m);
- setTimeout(()=>v.play().catch(()=>{}),120);
-}
+
 
 function showResumePrompt(t){
  const shell=$('#wp .custom-player');if(!shell||shell.querySelector('.resume-card'))return;
@@ -574,20 +535,13 @@ function showNextUp(){
 async function startFilm(source,title){
  if(!requireSession(()=>startFilm(source,title)))return;
  killPlayer();cur.rt=()=>startFilm(source,title);setSrc('film');
- let u=typeof source==='string'?null:source?.url;
- if(!u&&typeof source==='string'){try{u=await filmSrc(source)}catch{}}
- if(!u)return showErr('This movie is not available right now.');
- if(source?.type==='embed'){mountPlayerEmbed(u,title,source);return}
- if(source?.type==='mp4'||source?.type==='hls'||source?.type==='direct'||source?.type==='video'){mountNativeVideo(u,title,source);return}
- mountPlayerEmbed(u,title,source||{});
-}
-function mountPlayerEmbed(url,title,source={}){
- const w=$('#wp');if(!w||!url)return;
- const wrap=document.createElement('div');wrap.className='native-player embedded-player';
- wrap.innerHTML='<div class="source-loading" id="playerLoading"><div class="source-loader"></div><strong>Loading movie…</strong></div><iframe id="movie-frame" src="'+esc(url)+'" title="'+esc(title||'Now playing')+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
- w.innerHTML='<div class="player-exit">'+topbar+'</div>';w.appendChild(wrap);
- const frame=$('#movie-frame'),loading=$('#playerLoading');frame?.addEventListener('load',()=>setTimeout(()=>loading?.remove(),450),{once:true});
- remember(cur.m);
+ const u=typeof source==='string'?null:source?.url;
+ if(!u)return showErr('This movie is not available as a native video stream right now.');
+ if(source?.type==='mp4'||source?.type==='hls'||source?.type==='direct'||source?.type==='video'){
+   mountNativeVideo(u,title,source);
+   return;
+ }
+ showErr('This title did not return a native MP4/HLS stream.');
 }
 
 async function filmBtns(m,startAfterResolve=false){
