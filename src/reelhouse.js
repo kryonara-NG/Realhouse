@@ -464,7 +464,7 @@ function toggleP(){if(!yp||!yp.getPlayerState)return;const s=yp.getPlayerState()
 function mountNativeVideo(url,title,source={}){
  const w=$('#wp');if(!w)return;
  killPlayer();
- const type=source?.type||mediaTypeFromUrl(url)||'mp4';
+ const type=source?.type||(/\.m3u8(?:$|\?)/i.test(String(url||''))?'hls':'mp4');
  const safeTitle=esc(title||'Reelhouse');
  const poster=cur.m?.backdrop_path?IMG+'w1280'+cur.m.backdrop_path:(cur.m?.poster_path?IMG+'w780'+cur.m.poster_path:'');
  w.innerHTML=`<div class="custom-player native-player" aria-label="${safeTitle}"><video id="vd" playsinline preload="metadata" controlslist="nodownload" disablepictureinpicture=${poster?` poster="${esc(poster)}"`:''}></video></div>`+ctl;
