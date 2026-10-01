@@ -131,12 +131,16 @@ def extract_stream(
 
         def on_response(response) -> None:
             try:
-                add(
-                    response.url,
-                    "response",
-                    response.request.headers.get("referer", ""),
-                    response.headers.get("content-type", ""),
-                )
+                referer = response.request.headers.get("referer", "")
+                content_type = response.headers.get("content-type", "")
+                add(response.url, "response", referer, content_type)
+                if any(token in content_type.lower() for token in ("json", "javascript", "text/")):
+                    try:
+                        body = response.text()
+                        for match in MEDIA_RE.findall(body):
+                            add(match, "response-body", response.url, "")
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
@@ -157,6 +161,12 @@ def extract_stream(
             for current in pages:
                 for frame in list(current.frames):
                     inspect_frame(frame, player_url, allowed_hosts, add)
+                try:
+                    resources = current.evaluate('performance.getEntriesByType("resource").map(e => e.name)')
+                    for resource_url in resources:
+                        add(resource_url, "performance", current.url, "")
+                except Exception:
+                    pass
                 for label in ("Play", "Watch", "Start", "Continue"):
                     try:
                         current.get_by_role("button", name=re.compile(label, re.I)).first.click(timeout=700)
