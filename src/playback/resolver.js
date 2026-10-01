@@ -59,7 +59,8 @@ async function movieBoxSource(m,season,episode){
  if(m.release_date)qs.set('year',String(m.release_date).slice(0,4));
  if(m.media_type==='tv'){qs.set('season',String(season||1));qs.set('episode',String(episode||1))}
  try{
-  const r=await fetch(base+'/stream?'+qs.toString(),{cache:'no-store',headers:{Accept:'application/json'}});
+  const apiUrl=(base==='/api'?base:base+'/stream')+(base==='/api'?'?route=moviebox-stream&':'?')+qs.toString();
+  const r=await fetch(apiUrl,{cache:'no-store',headers:{Accept:'application/json'}});
   if(!r.ok)return null;
   return normalizeMovieBoxResult(await r.json(),m,season,episode);
  }catch{return null}
