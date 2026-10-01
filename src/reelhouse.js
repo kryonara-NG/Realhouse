@@ -26,7 +26,6 @@ const INDEPENDENCE_KEY='rh:independenceSeen';
 const isInstalledApp=()=>Boolean(window.Capacitor?.isNativePlatform?.()||window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true);
 const INBOX_KEY='rh:inbox';
 const SUBS_KEY='rh:subtitlePrefs';
-const VIDSRC_ORIGINS=['https://vidsrc.sh','https://vidsrcme.ru','https://vidsrc.to','https://vidsrc.cc','https://vidsrc.xyz','https://vidsrc.pm'];
 const inbox=()=>store.get(INBOX_KEY,[]);
 function addInbox(item){const list=inbox();const key=item.key||String(Date.now());if(list.some(x=>x.key===key))return;list.unshift({...item,key,at:item.at||Date.now()});store.set(INBOX_KEY,list.slice(0,60));renderNotificationBadge();}
 function renderNotificationBadge(){const b=$('#notifBadge');if(!b)return;const n=inbox().filter(x=>!x.read).length;b.hidden=!n;b.textContent=n>99?'99+':String(n)}
@@ -55,7 +54,6 @@ function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
 const subtitlePrefs=()=>store.get(SUBS_KEY,['en']);
 function subtitleQuery(){return subtitlePrefs().filter(Boolean).slice(0,3).join(',')}
-function buildVidSrcUrl(base,params={}){const u=new URL(base);const subs=subtitleQuery();if(subs)u.searchParams.set('ds_lang',subs);Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v))});return u.toString()}
 
 let pendingWatch=null;
 const requireSession=resume=>{if(session&&acct)return true;pendingWatch=resume||null;authSheet('in');toast('Log in to watch');return false};
@@ -171,8 +169,8 @@ function setupHomeInfinite(){
 async function home(){
  catalogState.clear();
  const initial=CATALOG_SECTIONS.slice(0,HOME_BATCH);
- view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Newly added","vidsrcLatest")} ${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}</div>`;
- loadIA();loadVidSrcLatest();
+ view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}</div>`;
+ loadIA();
  initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false);});
  setupHomeInfinite();
  try{
@@ -199,78 +197,6 @@ const rc=r=>r.ia?iaCard(r):card(r);
 const recentRow=()=>lists.recent.length?rowShell('Continue watching','cw',lists.recent.slice(0,12).map(rc).join('')):'';
 const iaCard=x=>{const id=esc(x.identifier||x.id);return `<a class="card" tabindex="0" role="button" data-ia="${id}" data-t="${esc(x.title)}"><i class="f">FREE</i><img loading="lazy" src="https://archive.org/services/img/${id}" alt=""><div class="m"><b>${esc(x.title)}</b><span>${esc(x.year||'Classic')}</span></div></a>`};
 async function iaList(q,n){return(await jget('https://archive.org/advancedsearch.php?q='+encodeURIComponent(q)+'&fl[]=identifier&fl[]=title&fl[]=year&sort[]=downloads+desc&rows='+n+'&output=json',undefined,true)).response.docs}
-async function loadVidSrcLatest(){
- const box=$('#vidsrcLatest');if(!box)return;
- try{
-  const [m,t]=await Promise.all([
-   jget(VIDSRC_MIRRORS[0]+'/movies/latest/page-1.json',undefined,true),
-   jget(VIDSRC_MIRRORS[0]+'/tvshows/latest/page-1.json',undefined,true)
-  ]);
-  const ids=[...(m?.result||[]).slice(0,10).map(x=>({...x,_kind:'movie'})),...(t?.result||[]).slice(0,10).map(x=>({...x,_kind:'tv'}))];
-  const unique=[...new Map(ids.map(x=>[String(x.tmdb_id||x.imdb_id)+'-'+x._kind,x])).values()].slice(0,14);
-  const hydrated=(await Promise.all(unique.map(async x=>{
-    try{
-      if(x.tmdb_id){
-        const d=await api('/'+x._kind+'/'+encodeURIComponent(x.tmdb_id));
-        return {...d,media_type:x._kind};
-      }
-      if(x.imdb_id){
-        const d=await api('/find/'+encodeURIComponent(x.imdb_id),{external_source:'imdb_id'});
-        const hit=(x._kind==='movie'?d.movie_results:d.tv_results||[])[0];
-        return hit?{...hit,media_type:x._kind}:null;
-      }
-      return null;
-    }catch{return null}
-  }))).filter(Boolean);
-  box.innerHTML=hydrated.map(card).join('')||'<p class="empty">Fresh additions could not load right now.</p>';
- }catch{box.innerHTML='<p class="empty">Fresh additions could not load right now.</p>'}
-}
-async function loadIA(){try{const d=await iaList('collection:feature_films AND mediatype:movies',24);$('#ia').innerHTML=d.map(iaCard).join('')}catch{const e=$('#ia');if(e)e.innerHTML='<p class="empty">Free films could not load right now.</p>'}}
-async function findFilm(m){const t=norm(m.title),y=+yr(m);
- const d=await iaList(`title:("${m.title.replace(/"/g,'')}") AND mediatype:movies AND (collection:feature_films OR collection:moviesandfilms)`,8);
- const h=d.find(x=>norm(x.title)===t&&Math.abs(+x.year-y)<=1);return h&&h.identifier}
-async function filmSrc(id){const d=await jget('https://archive.org/metadata/'+id);
- const rank=x=>/\.mp4$/i.test(x.name)?0:/\.(m4v|webm)$/i.test(x.name)?1:2;
- const f=(d.files||[]).filter(x=>/\.(mp4|m4v|webm|ogv)$/i.test(x.name)&&!/thumb|sample|trailer/i.test(x.name)).sort((a,b)=>rank(a)-rank(b)||(+a.size||0)-(+b.size||0));
- const best=f.filter(x=>rank(x)===0),pick=best.filter(x=>+x.size<3e8).pop()||best[0]||f[0];
- return pick&&`https://archive.org/download/${id}/`+pick.name.split('/').map(encodeURIComponent).join('/')}
-async function download(id,title){
- toast('Preparing download…');let u;try{u=await filmSrc(id)}catch{}
- if(!u)return toast('No downloadable file found');
- lists.dl=[{id,title,url:u,at:Date.now()},...lists.dl.filter(x=>x.id!==id)];store.set('dl',lists.dl);
- const a=document.createElement('a');a.href=u;a.download=(String(title||'Reelhouse-video').replace(/[^a-z0-9._-]+/gi,'_').slice(0,80)||'Reelhouse-video')+'.mp4';a.rel='noopener';a.target='_blank';document.body.appendChild(a);a.click();a.remove();
- toast('Download started. If your browser opens the video instead, use its download control.');
-}
-
-/* ---------- search ---------- */
-const B={type:'all',g:'',sort:'popularity.desc',q:'',page:1,genres:null,tvGenres:null,filterOpen:false,suggest:[]};
-const SEARCH_TYPES=[['all','Everything'],['movie','Movies'],['tv','Series'],['anime','Anime']];
-const animeParams={with_genres:'16',with_origin_country:'JP'};
-const searchItem=(m)=>`<button class="suggest" data-id="${m.id}" data-kind="${isTV(m)?'tv':'movie'}"><img src="${m.poster_path?IMG+'w92'+m.poster_path:''}" alt=""><span><b>${esc(titleOf(m))}</b><small>${esc(isTV(m)?'Series':'Movie')} · ${esc(yr(m))}</small></span><em>${I.r}</em></button>`;
-function genreList(){return B.type==='tv'||B.type==='anime'?(B.tvGenres||[]):(B.genres||[])}
-function renderSearchFilters(){
- const ch=$('#searchGenres'),types=$('#searchTypes'),sort=$('#sort');
- if(types)types.innerHTML=SEARCH_TYPES.map(([v,l])=>`<button class="chip ${B.type===v?'on':''}" data-type="${v}">${l}</button>`).join('');
- if(ch)ch.innerHTML=[{id:'',name:'All genres'},...genreList()].map(g=>`<button class="chip ${String(g.id)===B.g?'on':''}" data-g="${g.id}">${esc(g.name)}</button>`).join('');
- if(sort)sort.value=B.sort;
-}
-async function loadSearchMeta(){
- if(!B.genres||!B.tvGenres){try{const [mg,tg]=await Promise.all([api('/genre/movie/list'),api('/genre/tv/list')]);B.genres=mg.genres||[];B.tvGenres=tg.genres||[]}catch{B.genres=[];B.tvGenres=[]}}
- renderSearchFilters();
-}
-async function suggestions(q){
- if(q.length<2){B.suggest=[];renderSuggestions();return}
- try{
-  let d;
-  if(B.type==='movie')d=await api('/search/movie',{query:q,page:1,include_adult:false});
-  else if(B.type==='tv'||B.type==='anime')d=await api('/search/tv',{query:q,page:1,include_adult:false});
-  else d=await api('/search/multi',{query:q,page:1,include_adult:false});
-  let r=(d.results||[]).filter(m=>m.media_type!=='person'&&m.poster_path);
-  if(B.type==='anime')r=r.filter(m=>isTV(m)&&(m.genre_ids||[]).includes(16)&&(m.origin_country||[]).includes('JP'));
-  B.suggest=r.slice(0,7);
- }catch{B.suggest=[]}
- renderSuggestions();
-}
 function renderSuggestions(){
  const box=$('#suggestions');if(!box)return;
  box.innerHTML=B.suggest.length?B.suggest.map(searchItem).join(''):'';
