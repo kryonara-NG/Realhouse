@@ -152,3 +152,16 @@ def moviebox_stream(title: str = Query(min_length=1, max_length=200), year: str 
         return JSONResponse(status_code=502, content={"sources": [], "message": str(exc)})
     except Exception as exc:
         return JSONResponse(status_code=502, content={"sources": [], "message": "MovieBox playback request failed."})
+
+@app.get("/api")
+def api_entry(
+    route: str = "",
+    title: str = Query(default="", max_length=200),
+    year: str = "",
+    media_type: str = "movie",
+    season: int = 1,
+    episode: int = 1,
+):
+    if route != "moviebox-stream":
+        return {"ok": True, "service": "Realhouse API"}
+    return moviebox_stream(title=title, year=year, media_type=media_type, season=season, episode=episode)
