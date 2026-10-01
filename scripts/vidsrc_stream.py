@@ -227,7 +227,7 @@ def save_stream_map(media_key: str, stream: dict, streams_file: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Reelhouse Playwright media extractor")
     parser.add_argument("player_url", nargs="?", help="Full authorized player/embed URL.")
-    parser.add_argument("--base-url", default="https://vidsrcme.ru", help="Authorized player base URL.")
+    parser.add_argument("--base-url", default="https://vidsrc.sh", help="Authorized player base URL.")
     parser.add_argument("--allowed-host", action="append", default=[], help="Allowed media/player host; repeatable.")
     parser.add_argument(
         "--allow-discovered-media-hosts",
