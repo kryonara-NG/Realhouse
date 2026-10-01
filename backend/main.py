@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 app = FastAPI(title="Real House Search API", version="1.0.0")
+# Vercel deployment marker: keep the backend deployment aligned with main.
 from backend.moviebox_internal import register_routes as register_moviebox_internal_routes
 app.add_middleware(
     CORSMiddleware,
