@@ -1,41 +1,37 @@
-# Cloudflare deployment
+# Cloudflare Worker deployment
 
-Realhouse is a Vite app with a Cloudflare Pages Function for native MovieBox stream resolution.
+Reelhouse is configured for the Cloudflare **Workers** deployment flow used by the current Cloudflare create screen.
 
-## Cloudflare Pages
+## Build settings
 
-Use these project settings:
-
-- Framework preset: **Vite**
 - Build command: `npm run build`
-- Build output directory: `dist`
-- Root directory: repository root
+- Deploy command: `npx wrangler deploy`
+- Preview command: `npx wrangler dev`
+- Wrangler config: `wrangler.toml`
+- Worker entrypoint: `worker.js`
+- Static assets: `dist/`
 
-Add these environment variables in **Settings → Environment variables**:
+The Worker serves the Vite application from `dist/` and routes `/api/moviebox-internal/stream` to the native MovieBox resolver.
+
+## Environment variables
+
+Configure these as Worker environment variables/secrets in Cloudflare:
 
 - `MOVIEBOX_INTERNAL_BASE_URL` (optional; defaults to `https://apig.inmoviebox.com`)
-- `MOVIEBOX_GATEWAY_SECRET` (required for the signed native MovieBox API)
-- `MOVIEBOX_APP_ID` (optional)
-- `MOVIEBOX_REGION` (optional; defaults to `NG`)
-- `MOVIEBOX_LANG` (optional; defaults to `en`)
+- `MOVIEBOX_GATEWAY_SECRET` (required secret)
+- `MOVIEBOX_APP_ID` (optional; default is the authorized app id used by the integration)
+- `MOVIEBOX_REGION` (optional; default `NG`)
+- `MOVIEBOX_LANG` (optional; default `en`)
 - `MOVIEBOX_GUEST_TOKEN` (optional)
 
-The API is exposed at:
+Do not expose `MOVIEBOX_GATEWAY_SECRET` through a `VITE_*` variable.
 
-`/api/moviebox-internal/stream?title=...&year=...&media_type=movie`
+## Local verification
 
-The existing frontend already calls that path, so no Vite-side API URL change is required.
+```bash
+npm ci
+npm run build
+npx wrangler dev
+```
 
-## Local Cloudflare test
-
-`npm run build`
-
-Then install Wrangler and use:
-
-`npx wrangler pages dev dist`
-
-This keeps the playback credential server-side and does not expose the gateway secret as a VITE_* variable.
-
-## Important
-
-The Python FastAPI backend remains available for Vercel/other server deployments. Cloudflare Pages uses the JavaScript Pages Function above because Cloudflare Pages Functions run on the Workers runtime, not CPython.
+The Worker deployment is intentionally separate from the Cloudflare Pages Functions directory so the same MovieBox resolver can also be used by Pages-compatible deployments.
