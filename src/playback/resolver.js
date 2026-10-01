@@ -47,7 +47,7 @@ function normalizeMovieBoxResult(payload,m,season,episode){
   if(typeof url!=='string'||!/^https?:\/\//i.test(url))continue;
   const type=mediaTypeFromUrl(url);
   if(!type)continue;
-  return {status:'ready',type,source:'moviebox',url,tmdb_id:m?.id,season,episode,title:m?.title||m?.name||'Movie'};
+  return {status:'ready',type,source:'moviebox',url,tmdb_id:m?.id,season,episode,progressKey:m?.media_type==='tv'?`tv:${m?.id}:${season}:${episode}`:`movie:${m?.id}`,title:m?.title||m?.name||'Movie'};
  }
  return null;
 }
