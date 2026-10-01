@@ -21,10 +21,6 @@ function ReelhouseShell() {
           <button className="btn nav-surprise" id="dice" title="Open a random top-rated movie">
             <span aria-hidden="true">🎲</span><span>Surprise me</span>
           </button>
-          <button className="icon-btn notification-trigger" id="notifBell" aria-label="Open notifications" title="Notifications">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
-            <span className="notification-badge" id="notifBadge" hidden>0</span>
-          </button>
         </div>
       </header>
       <nav id="tab" aria-label="Main">
