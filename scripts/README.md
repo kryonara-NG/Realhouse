@@ -27,5 +27,5 @@ Requirements:
 - Playwright Chromium
 - FFmpeg available on PATH
 
-The utility is intentionally local. The Vite/Vercel frontend does not launch a browser or FFmpeg process.
+The utility is intentionally local. The Vite/Vercel frontend does not launch a browser or FFmpeg process. The captured HLS URL is written to `public/vidsrc-streams.json`, where the Reelhouse resolver picks it up and sends it to the custom video player. Use a `movie:<tmdb-id>` key or `tv:<tmdb-id>:<season>:<episode>` key. Run the extractor again when a captured URL expires.
 Use it only with media you are authorized to access/download.
