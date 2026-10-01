@@ -27,7 +27,7 @@ from fastapi.responses import JSONResponse
 MOVIEBOX_BASE_URL = os.getenv("MOVIEBOX_INTERNAL_BASE_URL", "https://apig.inmoviebox.com").rstrip("/")
 MOVIEBOX_GATEWAY_SECRET = os.getenv(
     "MOVIEBOX_GATEWAY_SECRET",
-    "76iRl07s0xSN9jqmEWAt79EBJZulIQIsV64FZr2O",
+    "",
 )
 MOVIEBOX_APP_ID = os.getenv("MOVIEBOX_APP_ID", "4U01pxRu278GqCZKY9")
 MOVIEBOX_REGION = os.getenv("MOVIEBOX_REGION", "NG")
