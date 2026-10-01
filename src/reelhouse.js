@@ -223,7 +223,7 @@ function hero(ms){
  if(!ms.length)return;
  $('.hero').classList.add('ready');const bgs=[...view.querySelectorAll('.bg')],hc=$('.hc'),dots=$('.dots');let i=0,f=0;
  dots.innerHTML=ms.map((_,j)=>`<button aria-label="Show featured movie ${j+1}"></button>`).join('');
- const show=n=>{i=n;f^=1;const m=ms[n];bgs[f].style.backgroundImage=`url(${IMG}${innerWidth>900?'w1280':'w780'}${m.backdrop_path})`;
+ const show=n=>{i=n;f^=1;const m=ms[n],imagePath=m.backdrop_path||m.poster_path;bgs[f].style.backgroundImage=imagePath?`url(${IMG}${m.backdrop_path?(innerWidth>900?'w1280':'w780'):'w780'}${imagePath})`:'none';
   bgs[f].classList.add('show');bgs[f^1].classList.remove('show');
   hc.classList.remove('in');void hc.offsetWidth;hc.classList.add('in');
   hc.innerHTML=`<div class="mt"><b class="rt">${I.star}${(m.vote_average||0).toFixed(1)}</b> &nbsp;${yr(m)}</div><h1>${esc(titleOf(m))}</h1><p>${esc(m.overview||'')}</p><div><button class="btn pri" data-play="${m.id}" data-t="${esc(titleOf(m))}">${I.play} Play trailer</button><button class="btn" data-id="${m.id}" data-kind="movie">More info</button></div>`;
