@@ -480,7 +480,7 @@ document.addEventListener('change',e=>{if(e.target.id==='av')setAvatar(e.target.
 /* ---------- watch page: small player on top, details underneath ---------- */
 let yp,ytP,tick,idle,drag=false,pm=null;
 const topbar=`<div class="top"><button class="ib" data-close aria-label="Back">${I.back}</button></div>`;
-const ctl=`<div class="spin" id="spin"><i></i></div><div class="perr" id="perr"></div><div class="shield" id="sh"></div>${topbar}<div class="ctl"><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek"><div class="cr"><button class="ib" id="pp" aria-label="Play or pause">${I.pause}</button><button class="ib" id="mu" aria-label="Mute">${I.vol}</button><input type="range" id="vol" min="0" max="100" value="80" style="--p:80%" aria-label="Volume"><span class="tm" id="tm">0:00 / 0:00</span><span style="flex:1"></span><button class="btn" id="spd">1×</button><button class="ib" id="fs" aria-label="Fullscreen">${I.full}</button></div></div>`;
+const ctl=`<div class="spin" id="spin"><i></i></div><div class="perr" id="perr"></div><div class="shield" id="sh"></div>${topbar}<div class="ctl reelhouse-controls" id="playerControls"><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek"><div class="cr"><button class="ib" id="back10" aria-label="Back 10 seconds">−10</button><button class="ib" id="pp" aria-label="Play or pause">${I.pause}</button><button class="ib" id="fwd10" aria-label="Forward 10 seconds">+10</button><button class="ib" id="mu" aria-label="Mute">${I.vol}</button><input type="range" id="vol" min="0" max="100" value="80" style="--p:80%" aria-label="Volume"><span class="tm" id="tm">0:00 / 0:00</span><span class="player-spacer"></span><button class="btn" id="spd" aria-label="Playback speed">1×</button><button class="ib" id="pip" aria-label="Picture in picture">PiP</button><button class="ib" id="fs" aria-label="Fullscreen">${I.full}</button></div><div class="player-extra"><button class="chip" id="playerLock">Lock</button><button class="chip" id="playerCinema">Cinema</button><button class="chip" id="playerSleep">Sleep</button><button class="chip" id="playerNext">Next</button></div></div>`;
 const skelPage=()=>`<div class="wpg"><div class="wp"><div class="poster sk0"></div>${topbar}</div><div class="wi"><div class="ln" style="width:65%;height:26px"></div><div class="ln" style="width:40%"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width:80%"></div></div></div>`;
 const loadYT=()=>ytP||(ytP=new Promise((res,rej)=>{if(window.YT&&YT.Player)return res();window.onYouTubeIframeAPIReady=res;const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=()=>{ytP=null;rej()};document.head.append(s);setTimeout(()=>{if(!(window.YT&&YT.Player)){ytP=null;rej()}},9000)}));
 const fmt=s=>{s=Math.floor(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
@@ -514,33 +514,61 @@ function mirrorName(url,i){try{const h=new URL(url).hostname.replace(/^www\\./,'
 function mountNativeVideo(url,title,source={}){
  const w=$('#wp');if(!w||!url)return;
  const safeTitle=title||'Now playing';
- w.innerHTML=`<div class="native-player"><video id="vd" playsinline controls preload="metadata" autoplay aria-label="${esc(safeTitle)}"></video><div class="native-player-title"><span class="player-live-dot"></span><span>${esc(safeTitle)}</span><button class="chip player-cinema" data-player-cinema>Focus</button></div></div>`;
+ const mediaType=/\\.m3u8(?:$|\\?)/i.test(url)?'HLS':'Video';
+ w.innerHTML=`<div class="native-player custom-player" tabindex="0" data-media-type="${mediaType}"><video id="vd" playsinline preload="metadata" autoplay aria-label="${esc(safeTitle)}"></video><div class="native-player-title"><span class="player-live-dot"></span><span>${esc(safeTitle)}</span><span class="player-file-badge">DIRECT ${mediaType}</span></div>${ctl}</div>`;
  const v=$('#vd');if(!v)return;
- if(/\.m3u8(?:$|\?)/i.test(url)&&!v.canPlayType('application/vnd.apple.mpegurl')){
+ const shell=w.querySelector('.custom-player');
+ if(/\\.m3u8(?:$|\\?)/i.test(url)&&!v.canPlayType('application/vnd.apple.mpegurl')){
    if(Hls.isSupported()){
      cur.hls=new Hls({enableWorker:true});
      cur.hls.loadSource(url);
      cur.hls.attachMedia(v);
-     cur.hls.on(Hls.Events.ERROR,(_,data)=>{
-       if(data?.fatal){try{cur.hls.destroy()}catch{}cur.hls=null;showErr('The extracted HLS stream could not be played.')}
-     });
-   }else{
-     showErr('This browser cannot play the extracted HLS stream.');
-     return;
-   }
- }else{
-   v.src=url;
- }
- yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source};v.volume=.8;
+     cur.hls.on(Hls.Events.MANIFEST_PARSED,()=>{spin(0);populateQualityMenu()});
+     cur.hls.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal){try{cur.hls.destroy()}catch{}cur.hls=null;showErr('The video stream could not be played.') }});
+   }else{showErr('This browser cannot play this video stream.');return}
+ }else{v.src=url}
+ yp=vAdapter(v);pm={id:cur.m?.id||source?.id||source?.tmdb_id||source?.url||'player'};v.volume=.8;
  const t=Number(S.prog[pm.id]||0);
- if(t)v.addEventListener('loadedmetadata',()=>{try{v.currentTime=t}catch{}},{once:true});
- const save=()=>{if(pm?.id&&Number.isFinite(v.currentTime)){S.prog[pm.id]=v.currentTime;store.set('prog',S.prog)}};
+ if(t>8)v.addEventListener('loadedmetadata',()=>{try{v.currentTime=Math.min(t,Math.max(0,(v.duration||t)-2));showResumePrompt(t)}catch{}},{once:true});
+ const save=()=>{if(pm?.id&&Number.isFinite(v.currentTime)){const d=v.duration||0;S.prog[pm.id]=d&&v.currentTime/d>.96?0:v.currentTime;store.set('prog',S.prog);if(cur.m)remember(cur.m)}};
  v.addEventListener('timeupdate',save,{passive:true});
- v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1)});
+ v.addEventListener('loadedmetadata',()=>updatePlayerUI(),{once:true});
+ v.addEventListener('durationchange',updatePlayerUI,{passive:true});
+ v.addEventListener('waiting',()=>spin(1));v.addEventListener('playing',()=>{spin(0);setPP(1);wake()});
  v.addEventListener('canplay',()=>spin(0));v.addEventListener('pause',()=>setPP(2));
- v.addEventListener('ended',()=>{setPP(0);if(pm?.id){S.prog[pm.id]=0;store.set('prog',S.prog)}});
- v.addEventListener('error',()=>showErr('Playback failed. The selected stream is unavailable or not supported by this browser.'));
+ v.addEventListener('ended',()=>{setPP(0);if(pm?.id){S.prog[pm.id]=0;store.set('prog',S.prog)}showNextUp()});
+ v.addEventListener('error',()=>showErr('Playback failed. The selected video file is unavailable or unsupported.'));
+ v.addEventListener('dblclick',e=>{const x=e.clientX<shell.clientWidth/2?-10:10;v.currentTime=Math.max(0,Math.min(v.duration||Infinity,v.currentTime+x));toast((x<0?'−10':'+'+x)+' seconds')});
+ shell?.addEventListener('mousemove',wake);shell?.addEventListener('touchstart',wake,{passive:true});
  remember(cur.m);
+ setTimeout(()=>v.play().catch(()=>{}),120);
+}
+
+function showResumePrompt(t){
+ const shell=$('#wp .custom-player');if(!shell||shell.querySelector('.resume-card'))return;
+ const card=document.createElement('div');card.className='resume-card';card.innerHTML=`<b>Continue watching?</b><span>Resume at ${fmt(t)}</span><div><button class="btn pri" data-resume>${I.play} Continue</button><button class="btn" data-start-over>Start over</button></div>`;
+ shell.appendChild(card);setTimeout(()=>card.classList.add('on'),60);setTimeout(()=>card.remove(),9000);
+}
+function populateQualityMenu(){
+ const shell=$('#wp .custom-player');if(!shell||!cur.hls)return;
+ const box=shell.querySelector('#playerQuality');if(box)box.remove();
+ const q=document.createElement('select');q.id='playerQuality';q.className='player-quality';q.setAttribute('aria-label','Video quality');
+ const levels=cur.hls.levels||[];
+ q.innerHTML='<option value="-1">Auto</option>'+levels.map((l,i)=>`<option value="${i}">${l.height?l.height+'p':(l.bitrate?Math.round(l.bitrate/1000)+'k':'Quality '+(i+1))}</option>`).join('');
+ shell.querySelector('.player-extra')?.prepend(q);
+ q.onchange=()=>{cur.hls.currentLevel=Number(q.value)};
+}
+function updatePlayerUI(){
+ const v=$('#vd');if(!v)return;const d=v.duration||0,t=v.currentTime||0;
+ const seek=$('#seek');if(seek&&!drag){seek.value=d?String(Math.round(t/d*1000)):0;seek.style.setProperty('--p',(d?t/d*100:0)+'%')}
+ const tm=$('#tm');if(tm)tm.textContent=fmt(t)+' / '+fmt(d);
+}
+function showNextUp(){
+ const shell=$('#wp .custom-player');if(!shell)return;
+ const next=shell.querySelector('.next-up-card')||document.createElement('div');next.className='next-up-card';
+ const isTv=cur.kind==='tv'&&cur.seriesId;
+ next.innerHTML=isTv?`<b>Next episode</b><span>Continue with the next episode</span><button class="btn pri" data-next-episode>Play next</button>`:`<b>Finished</b><span>Pick another title from Reelhouse.</span><button class="btn pri" data-player-close>Back to details</button>`;
+ shell.appendChild(next);requestAnimationFrame(()=>next.classList.add('on'));
 }
 
 async function startFilm(source,title){
@@ -621,7 +649,7 @@ async function playEpisode(seriesId,season,episode){
    toast('Coming to Reelhouse soon');
    return;
  }
- cur.source=source;cur.m=cur.m||ep;startFilm(source,title);
+ cur.source=source;cur.episode=Number(episode);cur.m=cur.m||ep;startFilm(source,title);
 }
 async function openDetail(id,auto,kind='movie'){if(kind==='tv')return openSeriesDetail(id,auto);killPlayer();const tok=cur.tok=(cur.tok||0)+1,box=$('#modal');
  box.classList.add('on');document.body.style.overflow='hidden';box.scrollTop=0;box.innerHTML=skelPage();cur.mode='none';cur.film=null;cur.tr=null;cur.rt=()=>openDetail(id,auto);
@@ -665,6 +693,24 @@ function toggleAct(el){const k=el.dataset.tg,on=toggle(k,cur.m);el.classList.tog
 const modal=$('#modal');
 modal.addEventListener('input',e=>{const t=e.target;if(!yp)return;if(t.id==='seek'){drag=true;t.style.setProperty('--p',t.value/10+'%')}if(t.id==='vol'){yp.setVolume(+t.value);t.style.setProperty('--p',t.value+'%')}});
 modal.addEventListener('change',e=>{if(e.target.id==='seek'&&yp){yp.seekTo(yp.getDuration()*e.target.value/1000,true);drag=false}});
+modal.addEventListener('click',e=>{
+ const t=e.target;
+ if(t.closest('#back10')){yp?.seekTo(Math.max(0,(yp.getCurrentTime()||0)-10),true);wake();return}
+ if(t.closest('#fwd10')){yp?.seekTo(Math.min(yp.getDuration()||Infinity,(yp.getCurrentTime()||0)+10),true);wake();return}
+ if(t.closest('#pp')){toggleP();wake();return}
+ if(t.closest('#mu')){if(yp?.isMuted())yp.unMute();else yp?.mute();t.closest('#mu').innerHTML=yp?.isMuted()?I.mute:I.vol;return}
+ if(t.closest('#spd')){const rates=[.75,1,1.25,1.5,1.75,2],now=yp?.getPlaybackRate?.()||1,next=rates[(rates.indexOf(now)+1)%rates.length];yp?.setPlaybackRate(next);t.closest('#spd').textContent=next+'×';toast('Speed '+next+'×');return}
+ if(t.closest('#pip')){const v=$('#vd');if(v?.requestPictureInPicture) v.requestPictureInPicture().catch(()=>toast('Picture-in-picture is unavailable here'));return}
+ if(t.closest('#fs')){const target=$('#wp .custom-player');if(!document.fullscreenElement)target?.requestFullscreen?.();else document.exitFullscreen?.();return}
+ if(t.closest('#playerCinema')){$('#wp .custom-player')?.classList.toggle('cinema-mode');return}
+ if(t.closest('#playerLock')){$('#wp .custom-player')?.classList.toggle('controls-locked');return}
+ if(t.closest('#playerSleep')){const mins=[0,15,30,60],curM=Number(localStorage.getItem('rh:sleep')||0),next=mins[(mins.indexOf(curM)+1)%mins.length];localStorage.setItem('rh:sleep',String(next));toast(next?'Sleep timer: '+next+' min':'Sleep timer off');if(next){clearTimeout(cur.sleep);cur.sleep=setTimeout(()=>{yp?.pauseVideo();toast('Sleep timer paused playback')},next*60000)}return}
+ if(t.closest('[data-resume]')){t.closest('.resume-card')?.remove();return}
+ if(t.closest('[data-start-over]')){if(yp){yp.seekTo(0,true);yp.playVideo()};t.closest('.resume-card')?.remove();return}
+ if(t.closest('[data-player-close]')){closeDetail();return}
+ if(t.closest('[data-next-episode]')&&cur.kind==='tv'){const next=(Number(cur.episode||0)+1);playEpisode(cur.seriesId,cur.season,next);return}
+});
+
 modal.addEventListener('mousemove',wake);modal.addEventListener('touchstart',wake,{passive:true});
 document.addEventListener('fullscreenchange',()=>{const f=$('#fs');if(f)f.innerHTML=document.fullscreenElement?I.exit:I.full});
 
