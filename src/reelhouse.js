@@ -24,7 +24,6 @@ let KEY='',lists={list:store.get('list',[]),fav:store.get('fav',[]),recent:store
 let nativeDownloads=isNativeReelhouse()?getNativeDownloads():[];
 let installPrompt=null;
 const WELCOME_KEY='rh:welcomeSeen';
-const INDEPENDENCE_KEY='rh:independenceSeen';
 const isInstalledApp=()=>Boolean(window.Capacitor?.isNativePlatform?.()||window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true);
 const INBOX_KEY='rh:inbox';
 const SUBS_KEY='rh:subtitlePrefs';
@@ -785,14 +784,12 @@ document.addEventListener('click',e=>{
  if(t.closest('[data-notifications-clear]')){store.set(INBOX_KEY,inbox().map(x=>({...x,read:true})));renderNotificationBadge();openNotifications();return}
  const n=t.closest('[data-notification-key]');if(n){store.set(INBOX_KEY,inbox().map(x=>x.key===n.dataset.notificationKey?{...x,read:true}:x));renderNotificationBadge();closeNotifications();if(n.dataset.notificationUrl)location.hash=n.dataset.notificationUrl;return}
  if(t.closest('[data-welcome-close],[data-welcome-enter]')){closeWelcome();setTimeout(openIndependence,450);return}
- if(t.closest('[data-independence-close]')){closeIndependence();return}
- if(t.closest('[data-player-cinema]')){const wp=$('#wp');wp?.classList.toggle('cinema-focus');return}
+  if(t.closest('[data-player-cinema]')){const wp=$('#wp');wp?.classList.toggle('cinema-focus');return}
 
 });
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REELHOUSE_NOTIFICATION_CLICK'){const u=e.data.url||'#/home';location.hash=u;closeNotifications()}});
 let notifTimer=null;
 function startNotificationMonitor(){clearInterval(notifTimer);const ns=notificationState();if(ns.enabled&&'Notification' in window&&Notification.permission==='granted'){checkMovieNotifications(false);notifTimer=setInterval(()=>checkMovieNotifications(false),30*60*1000)}}
-seedNotifications();renderNotificationBadge();startNotificationMonitor();setTimeout(openIndependence,900);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)startNotificationMonitor()});
+seedNotifications();renderNotificationBadge();startNotificationMonitor();document.addEventListener('visibilitychange',()=>{if(!document.hidden)startNotificationMonitor()});
 
 }
