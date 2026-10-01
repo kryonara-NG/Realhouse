@@ -11,7 +11,7 @@
 The default player base URL is:
 
 ```
-https://pl.realhouse.stream
+https://vidsrcme.ru
 ```
 
 It supports these media keys:
@@ -24,8 +24,8 @@ tv:12345:1:3
 Those become:
 
 ```
-https://pl.realhouse.stream/embed/movie/12345
-https://pl.realhouse.stream/embed/tv/12345/1/3
+https://vidsrcme.ru/embed/movie/12345
+https://vidsrcme.ru/embed/tv/12345/1/3
 ```
 
 Install the Python dependencies and Chromium once:

@@ -5,7 +5,7 @@ Opens a Realhouse-compatible embed URL with Playwright and captures the first
 direct media request (.mp4/.webm/.m4v/.ogv) or HLS playlist (.m3u8).
 
 The extractor is intentionally generic: point it at a player domain you own
-or are authorized to inspect, such as https://pl.realhouse.stream.
+or are authorized to inspect, such as https://vidsrcme.ru.
 
 It does not bypass DRM, authentication, paywalls, or access controls.
 """
@@ -197,7 +197,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--base-url",
-        default="https://pl.realhouse.stream",
+        default="https://vidsrcme.ru",
         help="Your player domain used with --media-key.",
     )
     parser.add_argument(
