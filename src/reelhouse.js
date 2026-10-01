@@ -51,10 +51,11 @@ function jget(url,h,persist){
  const timer=setTimeout(()=>controller.abort(),5000);
  const q=fetch(url,{headers:h,signal:controller.signal}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(persist)try{localStorage.setItem('c:'+url,JSON.stringify({t:Date.now(),d}))}catch{try{Object.keys(localStorage).filter(k=>k.startsWith('c:')).forEach(k=>localStorage.removeItem(k))}catch{}}return d}).catch(e=>{mem.delete(url);throw e}).finally(()=>{clearTimeout(timer);bar(-1)});
  mem.set(url,q);return q}
-function api(p,q={}){const u=new URL('https://api.themoviedb.org/3'+p),h={};
- if(KEY.length>40)h.Authorization='Bearer '+KEY;else u.searchParams.set('api_key',KEY);
+function api(p,q={}){
+ const u=new URL('/api/tmdb'+p,location.origin);
  for(const k in q)u.searchParams.set(k,q[k]);
- return jget(u.href,h,!/^\/movie\/\d/.test(p))}
+ return jget(u.href,{},!/^\\/movie\\/\\d/.test(p));
+}
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)};
 const subtitlePrefs=()=>store.get(SUBS_KEY,['en']);
 function subtitleQuery(){return subtitlePrefs().filter(Boolean).slice(0,3).join(',')}
