@@ -1,5 +1,5 @@
 import { resolveMovieSource, resolveEpisodeSource } from './playback/resolver.js';
-import { API_BASE } from './config.js';
+import { API_BASE, CATALOG_API_BASE } from './config.js';
 import { registerPlugin } from '@capacitor/core';
 import Hls from 'hls.js';
 import { isNativeReelhouse, canDownloadNativeSource, downloadNativeMovie, getNativeDownloads, shareNativeDownload, deleteNativeDownload, openNativeDownload, makeCalendarEvent } from './native/downloads.js';
@@ -135,7 +135,7 @@ function catalogParams(s,page){
 }
 async function localCatalog(path, params={}){
  try{
-   const u=new URL(API_BASE?API_BASE+path:path,location.origin);
+   const u=new URL(CATALOG_API_BASE+path);
    for(const [k,v] of Object.entries(params||{})){if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v))}
    return await jget(u.href,{},true);
  }catch{return null}
