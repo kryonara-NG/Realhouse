@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import { mountReelhouse } from "./reelhouse";
 import "./style.css";
-import { mountFreeDirectCatalog } from "./freeCatalog.js";
 
 function ReelhouseShell() {
   useEffect(() => {
@@ -29,11 +28,6 @@ function ReelhouseShell() {
       reportBootFailure(error);
     }
 
-    try {
-      mountFreeDirectCatalog();
-    } catch (error) {
-      console.error("[Reelhouse free catalog]", error);
-    }
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(error => console.warn("[Reelhouse SW]", error));
