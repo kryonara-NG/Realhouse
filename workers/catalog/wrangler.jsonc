@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "realhouse-tmdb-catalog",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-02",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "realhouse-tmdb-catalog",
+      "database_id": "a5d6a22e-becd-4c9a-8e1a-0ed2957cb342"
+    }
+  ]
+}
