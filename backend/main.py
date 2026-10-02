@@ -232,3 +232,108 @@ def api_entry(
 
 
 register_moviebox_internal_routes(app)
+
+
+# Local TMDB dataset catalog (Kaggle import)
+# The 1M+ row dataset is intentionally kept outside the frontend bundle.
+# Set TMDB_CATALOG_DB to the generated SQLite database path in deployments
+# that mount the catalog separately.
+import sqlite3
+from pathlib import Path
+
+TMDB_CATALOG_DB = os.getenv(
+    "TMDB_CATALOG_DB",
+    str(Path(__file__).resolve().parent.parent / "data" / "tmdb_catalog.sqlite3"),
+)
+
+def _catalog_db():
+    path = Path(TMDB_CATALOG_DB)
+    if not path.exists():
+        return None
+    conn = sqlite3.connect(str(path))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def _catalog_row(row):
+    if not row:
+        return None
+    d = dict(row)
+    d["release_date"] = d.get("release_date") or ""
+    d["genre_names"] = [x.strip() for x in str(d.get("genres") or "").replace("|", ",").split(",") if x.strip()]
+    d["media_type"] = "movie"
+    return d
+
+@app.get("/api/catalog/health")
+def catalog_health():
+    db = _catalog_db()
+    if not db:
+        return {"ok": False, "configured": False, "message": "TMDB catalog database is not mounted. Run the Kaggle import and set TMDB_CATALOG_DB."}
+    try:
+        count = db.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+        return {"ok": True, "configured": True, "movies": int(count), "source": "Kaggle TMDB Movies Dataset v1076"}
+    finally:
+        db.close()
+
+@app.get("/api/catalog/search")
+def catalog_search(q: str = Query(min_length=1, max_length=160), limit: int = Query(default=24, ge=1, le=100)):
+    db = _catalog_db()
+    if not db:
+        return JSONResponse(status_code=503, content={"results": [], "message": "Local TMDB catalog is not configured."})
+    try:
+        needle = q.strip()
+        rows = db.execute(
+            """SELECT id,title,original_title,overview,release_date,vote_average,vote_count,
+                      popularity,genres,poster_path,imdb_id,original_language
+               FROM movies
+               WHERE title LIKE ? COLLATE NOCASE OR original_title LIKE ? COLLATE NOCASE
+               ORDER BY popularity DESC, vote_count DESC LIMIT ?""",
+            (f"%{needle}%", f"%{needle}%", limit),
+        ).fetchall()
+        return {"results": [_catalog_row(r) for r in rows], "query": needle, "source": "kaggle-tmdb"}
+    finally:
+        db.close()
+
+@app.get("/api/catalog/discover")
+def catalog_discover(
+    genre: str = "",
+    year: int | None = Query(default=None, ge=1880, le=2100),
+    min_rating: float = Query(default=0, ge=0, le=10),
+    sort: str = Query(default="popularity", max_length=30),
+    page: int = Query(default=1, ge=1, le=10000),
+    limit: int = Query(default=24, ge=1, le=100),
+):
+    db = _catalog_db()
+    if not db:
+        return JSONResponse(status_code=503, content={"results": [], "message": "Local TMDB catalog is not configured."})
+    try:
+        clauses, args = ["vote_average >= ?"], [min_rating]
+        if genre:
+            clauses.append("genres LIKE ?")
+            args.append(f"%{genre}%")
+        if year:
+            clauses.append("release_date LIKE ?")
+            args.append(f"{year}-%")
+        order = {
+            "rating": "vote_average DESC, vote_count DESC",
+            "votes": "vote_count DESC, popularity DESC",
+            "newest": "release_date DESC, popularity DESC",
+            "popularity": "popularity DESC, vote_count DESC",
+        }.get(sort, "popularity DESC, vote_count DESC")
+        offset = (page - 1) * limit
+        where = " AND ".join(clauses)
+        rows = db.execute(
+            f"""SELECT id,title,original_title,overview,release_date,vote_average,vote_count,
+                       popularity,genres,poster_path,imdb_id,original_language
+                FROM movies WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?""",
+            (*args, limit, offset),
+        ).fetchall()
+        total = db.execute(f"SELECT COUNT(*) FROM movies WHERE {where}", args).fetchone()[0]
+        return {
+            "results": [_catalog_row(r) for r in rows],
+            "page": page,
+            "total_results": int(total),
+            "total_pages": max(1, (int(total) + limit - 1) // limit),
+            "source": "kaggle-tmdb",
+        }
+    finally:
+        db.close()
