@@ -154,17 +154,8 @@ async function loadCatalogPage(s,page=1,append=false){
    let d=null;
    // The imported Kaggle catalog is the fast local movie source. TV and
    // mixed sections continue to use live TMDB because this dataset is movies.
-   if(s.kind==='movie'){
-     const p=catalogParams(s,page);
-     const localParams={
-       page,
-       limit:24,
-       sort:(s.id==='top-rated'?'rating':s.id==='new-movies'||s.id==='upcoming'?'newest':'popularity')
-     };
-     if(p.with_genres)localParams.genre=p.with_genres;
-     d=await localCatalog('/api/catalog/discover',localParams);
-   }
-   if(!d?.results?.length)d=await api(s.path,catalogParams(s,page));
+   
+   d=await api(s.path,catalogParams(s,page));
    if(!d)throw new Error('No catalog response');
    if(!append)box.innerHTML='';
    delete box.dataset.fallback;
@@ -175,12 +166,7 @@ async function loadCatalogPage(s,page=1,append=false){
    if(!fresh.length&&page<state.total)loadCatalogPage(s,page+1,true);
  }catch{
    state.loading=false;catalogState.set(s.id,state);
-   if(!append){
-     const fallback=localFallbackFor(s.kind).filter(m=>!state.seen.has(m.media_type+':'+m.id));
-     fallback.forEach(m=>state.seen.add(m.media_type+':'+m.id));
-     box.innerHTML=fallback.map(card).join('')||'<p class="empty">This section could not load right now.</p>';
-     box.dataset.fallback='1';
-   }
+   if(!append){box.innerHTML='<p class="empty">TMDB catalog could not load right now. Check your connection and try again.</p>';}
  }
 }
 function watchCatalogScroll(s){
@@ -219,8 +205,8 @@ async function home(){
  const localHero=localFallbackFor('movie').slice(0,6);
 
  const initial=CATALOG_SECTIONS.slice(0,HOME_BATCH);
- view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${rowShell("Free full movies to stream","ia")}${recentRow()}${initial.map(catalogShell).join('')}<section class="upcoming-space" id="upcomingSpace"><div class="upcoming-copy"><span class="welcome-kicker">WHAT'S NEXT</span><h2>Not out yet. Still worth knowing about.</h2><p>Track cinema releases, set a reminder, and keep the date close.</p></div><div class="upcoming-list" id="upcomingList"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></section></div>`;
- loadIA();
+ view.innerHTML=`<section class="hero"><div class="bg"></div><div class="bg"></div><div class="shade"></div><div class="hc"></div><div class="dots"></div></section><div class="rows">${recentRow()}${initial.map(catalogShell).join('')}<section class="upcoming-space" id="upcomingSpace"><div class="upcoming-copy"><span class="welcome-kicker">WHAT'S NEXT</span><h2>Not out yet. Still worth knowing about.</h2><p>Track cinema releases, set a reminder, and keep the date close.</p></div><div class="upcoming-list" id="upcomingList"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></section></div>`;
+
  initial.forEach(s=>{catalogState.set(s.id,{page:0,loading:false,total:1,seen:new Set()});watchCatalogScroll(s);loadCatalogPage(s,1,false);});
  setupHomeInfinite();
  renderUpcomingSpace();
@@ -273,8 +259,7 @@ async function fill(reset){
   let d;
   if(B.q){
    if(B.type==='movie'){
-    d=await localCatalog('/api/catalog/search',{q:B.q,page:B.page,limit:24});
-    if(!d?.results?.length)d=await api('/search/movie',{query:B.q,page:B.page,include_adult:false});
+    d=await api('/search/movie',{query:B.q,page:B.page,include_adult:false});
    }else if(B.type==='tv'||B.type==='anime')d=await api('/search/tv',{query:B.q,page:B.page,include_adult:false});
    else d=await api('/search/multi',{query:B.q,page:B.page,include_adult:false});
    d.results=(d.results||[]).filter(m=>m.media_type!=='person'&&m.poster_path);
