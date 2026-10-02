@@ -133,21 +133,39 @@ function catalogShell(s){
 function catalogParams(s,page){
  return {sort_by:s.params?.sort_by||'popularity.desc',include_adult:false,page,...(s.params||{})};
 }
+async function localCatalog(path, params={}){
+ try{
+   const u=new URL(API_BASE?API_BASE+path:path,location.origin);
+   for(const [k,v] of Object.entries(params||{})){if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v))}
+   return await jget(u.href,{},true);
+ }catch{return null}
+}
 async function loadCatalogPage(s,page=1,append=false){
  const box=$('#cat-'+s.id);if(!box)return;
  const state=catalogState.get(s.id)||{page:0,loading:false,total:1,seen:new Set()};
  if(state.loading)return;
  if(!append && !box.dataset.fallback){
    const fallback=localFallbackFor(s.kind);
-   if(fallback.length){
-     box.innerHTML=fallback.map(card).join('');
-     box.dataset.fallback='1';
-   }
+   if(fallback.length){box.innerHTML=fallback.map(card).join('');box.dataset.fallback='1';}
  }
  if(page>state.total)return;
  state.loading=true;catalogState.set(s.id,state);
  try{
-   const d=await api(s.path,catalogParams(s,page));
+   let d=null;
+   // The imported Kaggle catalog is the fast local movie source. TV and
+   // mixed sections continue to use live TMDB because this dataset is movies.
+   if(s.kind==='movie'){
+     const p=catalogParams(s,page);
+     const localParams={
+       page,
+       limit:24,
+       sort:(s.id==='top-rated'?'rating':s.id==='new-movies'||s.id==='upcoming'?'newest':'popularity')
+     };
+     if(p.with_genres)localParams.genre=p.with_genres;
+     d=await localCatalog('/api/catalog/discover',localParams);
+   }
+   if(!d?.results?.length)d=await api(s.path,catalogParams(s,page));
+   if(!d)throw new Error('No catalog response');
    if(!append)box.innerHTML='';
    delete box.dataset.fallback;
    const results=(d.results||[]).filter(m=>m.poster_path).map(m=>s.kind==='movie'?{...m,media_type:'movie'}:s.kind==='tv'?{...m,media_type:'tv'}:m);
@@ -254,8 +272,10 @@ async function fill(reset){
  try{
   let d;
   if(B.q){
-   if(B.type==='movie')d=await api('/search/movie',{query:B.q,page:B.page,include_adult:false});
-   else if(B.type==='tv'||B.type==='anime')d=await api('/search/tv',{query:B.q,page:B.page,include_adult:false});
+   if(B.type==='movie'){
+    d=await localCatalog('/api/catalog/search',{q:B.q,page:B.page,limit:24});
+    if(!d?.results?.length)d=await api('/search/movie',{query:B.q,page:B.page,include_adult:false});
+   }else if(B.type==='tv'||B.type==='anime')d=await api('/search/tv',{query:B.q,page:B.page,include_adult:false});
    else d=await api('/search/multi',{query:B.q,page:B.page,include_adult:false});
    d.results=(d.results||[]).filter(m=>m.media_type!=='person'&&m.poster_path);
    if(B.type==='anime')d.results=d.results.filter(m=>isTV(m)&&(m.genre_ids||[]).includes(16)&&(m.origin_country||[]).includes('JP'));
