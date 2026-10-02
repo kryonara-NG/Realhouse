@@ -13,6 +13,7 @@
     "cap:open:android": "cap open android",
     "cap:build:android": "npm run cap:sync && cap build android",
     "catalog:import": "python scripts/import_scrapper.py",
+    "catalog:kaggle": "python scripts/import_kaggle_tmdb.py",
     "vidsrc:extract": "python scripts/vidsrc_stream.py",
     "vidsrc:setup": "python -m playwright install chromium"
   },
