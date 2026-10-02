@@ -19,4 +19,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m py_compile backend/main.py backend/moviebox_internal.py api/index.py scripts/import_scrapper.py
+      - run: python -m py_compile backend/main.py backend/moviebox_internal.py api/index.py scripts/import_scrapper.py scripts/import_kaggle_tmdb.py
